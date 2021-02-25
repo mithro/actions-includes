@@ -195,7 +195,7 @@ def expand_steps_list(current_action, yaml_list):
                 'uses': INCLUDE_ACTION_NAME,
                 'continue-on-error': False,
                 'with': {
-                    'workflow': current_action.filename,
+                    'workflow': str(os.path.relpath(current_action.filename, current_action.repo_root)),
                 },
             })
 
