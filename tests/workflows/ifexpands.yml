@@ -30,34 +30,34 @@ jobs:
     - includes: ./tests/include
       with:
         message: 'Hello World'
-        use-first: matrix.use-first
+        use-first: ${{ matrix.use-first }}
 
     - includes: ./tests/include
       with:
         message: 'Hello World'
-        use-first: matrix.use-first
-        use-last: matrix.use-first
+        use-first: ${{ matrix.use-first }}
+        use-last: ${{ matrix.use-first }}
 
     - includes: ./tests/include
       with:
         message: 'Hello World'
-        use-first: matrix.use-last
-        use-last: matrix.use-last
+        use-first: ${{ matrix.use-last }}
+        use-last: ${{ matrix.use-last }}
 
     - includes: ./tests/include
       with:
         message: 'Hello World'
-        use-last: matrix.use-last
+        use-last: ${{ matrix.use-last }}
 
     - includes: ./tests/include-multi
       with:
-        use-a: matrix.use-first
-        use-b: matrix.use-last
+        use-a: ${{ matrix.use-first }}
+        use-b: ${{ matrix.use-last }}
 
     - includes: ./tests/include-multi
       with:
-        use-a: matrix.use-first
+        use-a: ${{ matrix.use-first }}
 
     - includes: ./tests/include-multi
       with:
-        use-b: matrix.use-last
+        use-b: ${{ matrix.use-last }}

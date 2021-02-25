@@ -150,6 +150,30 @@ def get_action_data(current_action, action_name):
     return yaml_data
 
 
+def to_eval_literal(v):
+    # myNull: ${{ null }}
+    if v is None:
+        return 'null'
+    # myBoolean: ${{ false }}
+    elif v is True:
+        return 'true'
+    elif v is False:
+        return 'false'
+    # myIntegerNumber: ${{ 711 }}
+    # myFloatNumber: ${{ -9.2 }}
+    # myExponentialNumber: ${{ -2.99-e2 }}
+    elif isinstance(v, (int, float)):
+        return str(v)
+    # myString: ${{ 'Mona the Octocat' }}
+    # myEscapedString: ${{ 'It''s open source!' }}
+    elif isinstance(v, str):
+        if "'" in v:
+            v.replace("'", "''")
+        return "'{}'".format(v)
+    elif isinstance(v, Value):
+        return str(v)
+    # myHexNumber: ${{ 0xff }}
+
 
 def replace_inputs(yaml_item, inputs):
     if isinstance(yaml_item, dict):
@@ -163,18 +187,13 @@ def replace_inputs(yaml_item, inputs):
     elif isinstance(yaml_item, str):
         if 'inputs.' in yaml_item:
             for f, t in inputs.items():
-                if isinstance(t, str):
-                    yt = t
-                else:
-                    yt = yaml.dump(t)
-                    if yt.endswith('\n...\n'):
-                        yt = yt[:-5]
-                    if yt.endswith('\n'):
-                        yt = yt[:-1]
-                yaml_item = yaml_item.replace('inputs.' + f, yt)
+                yaml_item = yaml_item.replace('inputs.' + f, to_eval_literal(yt))
             yaml_item = yaml.safe_load(yaml_item)
     return yaml_item
 
+
+class Value(str):
+    pass
 
 
 def expand_steps_list(current_action, yaml_list):
@@ -209,6 +228,13 @@ def expand_steps_list(current_action, yaml_list):
 
             if in_info.get('required', False):
                 assert in_name in inputs, (in_name, in_info, with_data)
+
+            v = inputs[in_name]
+            if isinstance(v, str):
+                vs = v.strip()
+                if vs.startswith('${{'):
+                    assert vs.endswith('}}')
+                inputs[in_name] = Value(vs[3:-2])
 
         assert 'runs' in include_yamldata, include_yamldata
         assert 'steps' in include_yamldata['runs'], include_yamldata['steps']
