@@ -189,15 +189,16 @@ def expand_steps_list(current_action, yaml_list):
         if condition is False:
             continue
 
-        if not out_list or out_list[0].get('uses', '') != INCLUDE_ACTION_NAME:
-            assert isinstance(current_action, LocalAction), current_action
-            out_list.insert(0, {
-                'uses': INCLUDE_ACTION_NAME,
-                'continue-on-error': False,
-                'with': {
-                    'workflow': str(os.path.relpath(current_action.filename, current_action.repo_root)),
-                },
-            })
+        if isinstance(current_action, LocalAction):
+            if not out_list or out_list[0].get('uses', '') != INCLUDE_ACTION_NAME:
+                out_list.insert(0, {
+                    'uses': INCLUDE_ACTION_NAME,
+                    'continue-on-error': False,
+                    'with': {
+                        'workflow': str(os.path.relpath(
+                            current_action.filename, current_action.repo_root)),
+                    },
+                })
 
         include_yamldata = get_action_yaml(current_action, v['includes'])
 
@@ -314,14 +315,17 @@ def main(args):
 
     to_file.write("""
 # !! WARNING !!
-# Do not modify this file directly! It is generated from
-# {}
+# Do not modify this file directly!
+# !! WARNING !!
+#
+# It is generated from: {}
 # using the script from https://github.com/mithro/actions-includes
 
 """.format(str(src_path)))
 
     data = yaml_load_and_expand(current_action, input_data)
     yaml.dump(data, stream=to_file, allow_unicode=True)
+    return 0
 
 
 if __name__ == "__main__":

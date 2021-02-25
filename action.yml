@@ -8,16 +8,6 @@ runs:
   using: "composite"
 
   steps:
-  - shell: python3 {0}
+  - shell: bash
     run: |
-      import sys
-      print(sys.version)
-      import urllib.request
-
-      workflow_url = "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/${{ inputs.workflow }}"
-      print(workflow_url)
-      data = urllib.request.urlopen(workflow_url).read().decode('utf-8')
-      print()
-      print('-'*75)
-      print(data)
-      print('-'*75)
+      python3 "${{ github.action_path }}/check_workflow.py" "${{ inputs.workflow }}"
