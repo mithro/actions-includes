@@ -23,6 +23,7 @@
 
 jobs:
   test-basic:
+    runs-on: ubuntu-latest
     steps:
     - continue-on-error: false
       uses: mithro/actions-includes@main
@@ -34,6 +35,7 @@ jobs:
     - name: Middle step
       run: echo "${{ Hello World }}"
   test-recursive-remote-with-local:
+    runs-on: ubuntu-latest
     steps:
     - continue-on-error: false
       uses: mithro/actions-includes@main
@@ -61,6 +63,7 @@ jobs:
     - name: Middle step
       run: echo "${{ Middle step }}"
   test-recursive-remote-with-remote:
+    runs-on: ubuntu-latest
     steps:
     - continue-on-error: false
       uses: mithro/actions-includes@main
@@ -88,6 +91,7 @@ jobs:
     - name: Middle step
       run: echo "${{ Middle step }}"
   test-setting-default-false-to-true:
+    runs-on: ubuntu-latest
     steps:
     - continue-on-error: false
       uses: mithro/actions-includes@main
@@ -106,6 +110,7 @@ jobs:
     - run: |
         echo "Post-step"
   test-setting-default-true-to-false:
+    runs-on: ubuntu-latest
     steps:
     - continue-on-error: false
       uses: mithro/actions-includes@main

@@ -23,6 +23,7 @@
 
 jobs:
   test-setting-default-false-to-true:
+    runs-on: ubuntu-latest
     steps:
     - continue-on-error: false
       uses: mithro/actions-includes@main
