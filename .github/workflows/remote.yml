@@ -26,7 +26,7 @@ on:
   pull_request:
 jobs:
   test-setting-default-false-to-true:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: mithro/actions-includes@main
       continue-on-error: false
@@ -46,7 +46,7 @@ jobs:
     - run: |
         echo "Post-step"
   test-setting-default-true-to-false:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: mithro/actions-includes@main
       continue-on-error: false
@@ -60,7 +60,7 @@ jobs:
     - run: |
         echo "Post-step"
   test-basic:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: mithro/actions-includes@main
       continue-on-error: false
@@ -73,7 +73,7 @@ jobs:
       run: |
         echo "${{ 'Hello World' }}"
   test-recursive-remote-with-local:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: mithro/actions-includes@main
       continue-on-error: false
@@ -107,7 +107,7 @@ jobs:
       run: |
         echo "${{ 'Middle step' }}"
   test-recursive-remote-with-remote:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: mithro/actions-includes@main
       continue-on-error: false

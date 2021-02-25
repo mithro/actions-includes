@@ -24,7 +24,7 @@ jobs:
       matrix:
         use-first: [true, false]
         use-last: [true, false]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
     - includes: ./tests/include

@@ -20,7 +20,7 @@ on:
 
 jobs:
   test-setting-default-false-to-true:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - run: |
         echo "Pre-step"
@@ -32,7 +32,7 @@ jobs:
         echo "Post-step"
 
   test-setting-default-true-to-false:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - run: |
         echo "Pre-step"
@@ -44,14 +44,14 @@ jobs:
         echo "Post-step"
 
   test-basic:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - includes: ./tests/include
       with:
           message: 'Hello World'
 
   test-recursive-local-with-local:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - includes: ./tests/recursive/local
       with:
@@ -66,7 +66,7 @@ jobs:
         use-last: false
 
   test-recursive-local-with-remote:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - includes: ./tests/recursive/remote
       with:

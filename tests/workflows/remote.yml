@@ -20,7 +20,7 @@ on:
 
 jobs:
   test-setting-default-false-to-true:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - run: |
         echo "Pre-step"
@@ -32,7 +32,7 @@ jobs:
         echo "Post-step"
 
   test-setting-default-true-to-false:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - run: |
         echo "Pre-step"
@@ -44,14 +44,14 @@ jobs:
         echo "Post-step"
 
   test-basic:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - includes: mithro/actions-includes/tests/include@main
       with:
           message: 'Hello World'
 
   test-recursive-remote-with-local:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - includes: mithro/actions-includes/tests/recursive/local@main
       with:
@@ -66,7 +66,7 @@ jobs:
         use-last: false
 
   test-recursive-remote-with-remote:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - includes: mithro/actions-includes/tests/recursive/remote@main
       with:

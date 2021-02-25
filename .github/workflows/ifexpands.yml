@@ -34,7 +34,7 @@ jobs:
         use-last:
         - true
         - false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: mithro/actions-includes@main
       continue-on-error: false
