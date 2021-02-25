@@ -21,9 +21,6 @@
 # It is generated from: ../../tests/workflows/ifexpands.yml
 # using the script from https://github.com/mithro/actions-includes
 
-true:
-  pull_request: null
-  push: null
 jobs:
   test-setting-default-false-to-true:
     steps:
@@ -86,3 +83,6 @@ jobs:
         use-last:
         - true
         - false
+on:
+  pull_request:
+  push:

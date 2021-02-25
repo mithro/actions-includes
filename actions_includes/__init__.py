@@ -78,7 +78,7 @@ def get_filepath(current, filepath):
         assert isinstance(current, LocalFilePath), (current, filepath)
         localpath = (current.repo_root / filepath[2:]).resolve()
         repopath = localpath.relative_to(current.repo_root)
-        return current._replace(path=repo_path)
+        return current._replace(path=repopath)
 
     # Remote file
     else:
@@ -128,7 +128,7 @@ def get_action_data(current_action, action_name):
 
     errors = {}
     for f in ACTION_YAML_NAMES:
-        action_filepath = action_dirpath._replace(path=action_dirpath.path+f)
+        action_filepath = action_dirpath._replace(path=str(action_dirpath.path)+f)
 
         data = get_filepath_data(action_filepath)
 
@@ -327,7 +327,7 @@ def expand_workflow(current_workflow, to_path):
             'uses': INCLUDE_ACTION_NAME,
             'continue-on-error': False,
             'with': {
-                'workflow': to_path,
+                'workflow': str(to_path),
             },
         })
 

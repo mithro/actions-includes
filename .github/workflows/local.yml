@@ -39,10 +39,6 @@ jobs:
       uses: mithro/actions-includes@main
       with:
         workflow: .github/workflows/local.yml
-    - continue-on-error: false
-      uses: mithro/actions-includes@main
-      with:
-        workflow: .github/workflows/local.yml
     - name: Middle step
       run: echo "${{ First step }}"
     - name: First step
@@ -55,10 +51,6 @@ jobs:
         echo "Last step!"
     - name: Middle step
       run: echo "${{ Last step }}"
-    - continue-on-error: false
-      uses: mithro/actions-includes@main
-      with:
-        workflow: .github/workflows/local.yml
     - name: Middle step
       run: echo "${{ First step }}"
     - name: First step
@@ -66,10 +58,6 @@ jobs:
         echo "First step!"
     - name: Middle step
       run: echo "${{ Middle step }}"
-    - continue-on-error: false
-      uses: mithro/actions-includes@main
-      with:
-        workflow: .github/workflows/local.yml
     - name: Middle step
       run: echo "${{ Middle step }}"
   test-recursive-local-with-remote:
@@ -78,10 +66,6 @@ jobs:
       uses: mithro/actions-includes@main
       with:
         workflow: .github/workflows/local.yml
-    - continue-on-error: false
-      uses: mithro/actions-includes@main
-      with:
-        workflow: .github/workflows/local.yml
     - name: Middle step
       run: echo "${{ First step }}"
     - name: First step
@@ -94,10 +78,6 @@ jobs:
         echo "Last step!"
     - name: Middle step
       run: echo "${{ Last step }}"
-    - continue-on-error: false
-      uses: mithro/actions-includes@main
-      with:
-        workflow: .github/workflows/local.yml
     - name: Middle step
       run: echo "${{ First step }}"
     - name: First step
@@ -105,10 +85,6 @@ jobs:
         echo "First step!"
     - name: Middle step
       run: echo "${{ Middle step }}"
-    - continue-on-error: false
-      uses: mithro/actions-includes@main
-      with:
-        workflow: .github/workflows/local.yml
     - name: Middle step
       run: echo "${{ Middle step }}"
   test-setting-default-false-to-true:
@@ -141,3 +117,6 @@ jobs:
       run: echo "${{ Hello World }}"
     - run: |
         echo "Post-step"
+on:
+  pull_request:
+  push:
