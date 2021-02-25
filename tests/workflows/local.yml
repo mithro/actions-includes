@@ -1,0 +1,57 @@
+# Tests for actions-include
+jobs:
+  test-setting-default-false-to-true:
+    steps:
+    - run: |
+        echo "Pre-step"
+    - includes: ./tests/include@main
+      with:
+          message: 'Hello World'
+          use-last: true
+    - run: |
+        echo "Post-step"
+
+  test-setting-default-true-to-false:
+    steps:
+    - run: |
+        echo "Pre-step"
+    - includes: ./tests/include@main
+      with:
+          message: 'Hello World'
+          use-first: false
+    - run: |
+        echo "Post-step"
+
+  test-basic:
+    steps:
+    - includes: ./tests/include@main
+      with:
+          message: 'Hello World'
+
+  test-recursive-local:
+    steps:
+    - includes: ./tests/recursive/local@main
+      with:
+        use-first: true
+        use-last: true
+
+    - includes: ./tests/recursive/local@main
+
+    - includes: ./tests/recursive/local@main
+      with:
+        use-first: false
+        use-last: false
+
+  test-recursive-remote:
+    steps:
+    - includes: ./tests/recursive/remote@main
+      with:
+        use-first: true
+        use-last: true
+
+    - includes: ./tests/recursive/remote@main
+
+    - includes: ./tests/recursive/remote@main
+      with:
+        use-first: false
+        use-last: false
