@@ -70,7 +70,6 @@ def replace_inputs(yaml_item, inputs):
         return inputs[yaml_item]
     elif isinstance(yaml_item, str):
         if 'inputs.' in yaml_item:
-            printerr('Before:', repr(yaml_item))
             for f, t in inputs.items():
                 if isinstance(t, str):
                     yt = t
@@ -82,7 +81,6 @@ def replace_inputs(yaml_item, inputs):
                         yt = yt[:-1]
                 yaml_item = yaml_item.replace('inputs.' + f, yt)
             yaml_item = yaml.safe_load(yaml_item)
-            printerr('After:', repr(yaml_item))
     return yaml_item
 
 
@@ -125,10 +123,17 @@ def get_action_yaml(repo_root, action_name):
         action_name = str(
             pathlib.Path('.') / '.github' / 'actions' / action_name[1:])
 
+    if action_name.startswith('./'):
+        assert '@' not in action_name, (
+            "Local name {} shouldn't have an @ in it".format(action_name))
+
     # If action is local but repo_root is remote, rewrite to a remote action.
     if isinstance(repo_root, RemoteAction) and action_name.startswith('./'):
+        old_action_name = action_name
         new_action = repo_root._replace(path=action_name[2:])
         action_name = '{user}/{repo}/{path}@{ref}'.format(**new_action._asdict())
+        printerr('Rewrite local action {} in remote repo {} to: {}'.format(
+            old_action_name, repo_root, action_name))
 
     # Local actions can just be read directly from disk.
     if action_name.startswith('./'):
@@ -169,11 +174,14 @@ def expand_steps_list(repo_root, yaml_list):
         if 'includes' not in v:
             # Support the `/{name}` format on `uses` values.
             uses = v.get('uses', 'Run cmd')
-            printerr('Uses:', uses)
             if uses.startswith('/'):
                 v['uses'] = './.github/actions' + uses
 
             out_list.append(v)
+            continue
+
+        condition = v.get('if', True)
+        if condition is False:
             continue
 
         include_yamldata = get_action_yaml(repo_root, v['includes'])
@@ -196,6 +204,7 @@ def expand_steps_list(repo_root, yaml_list):
         assert 'runs' in include_yamldata, include_yamldata
         assert 'steps' in include_yamldata['runs'], include_yamldata['steps']
 
+
         steps = include_yamldata['runs']['steps']
         while len(steps) > 0:
             step = steps.pop(0)
@@ -206,6 +215,12 @@ def expand_steps_list(repo_root, yaml_list):
                     continue
                 if step['if'] is True:
                     del step['if']
+
+            if condition is not True:
+                if 'if' in step:
+                    step['if'] = '{} && ({})'.format(condition, step['if'])
+                else:
+                    step['if'] = condition
 
             out_list.append(step)
 
@@ -286,6 +301,7 @@ def main(args):
 # !! WARNING !!
 # Do not modify this file directly! It is generated from
 # {}
+# using the script from https://github.com/mithro/actions-includes
 
 """.format(str(src_path)))
 
