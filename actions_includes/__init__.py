@@ -29,14 +29,19 @@ import yaml
 from collections import namedtuple
 
 
+def printerr(*args, **kw):
+    print(*args, file=sys.stderr, **kw)
+
+
+MARKER = "It is generated from: "
 INCLUDE_ACTION_NAME = 'mithro/actions-includes@main'
 
 
-LocalAction = namedtuple('LocalAction', 'repo_root filename')
-RemoteAction = namedtuple('RemoteAction', 'user repo ref path')
+LocalFilePath = namedtuple('LocalFilePath', 'repo_root path')
+RemoteFilePath = namedtuple('RemoteFilePath', 'user repo ref path')
 
 
-def parse_remote_action(action_name):
+def parse_remote_path(action_name):
     assert not action_name.startswith('docker://'), action_name
     if '@' not in action_name:
         action_name = action_name + '@main'
@@ -47,20 +52,103 @@ def parse_remote_action(action_name):
         repo_plus_path += '/'
 
     user, repo, path = repo_plus_path.split('/', 2)
-    if path and not path.endswith('/'):
-        path = path + '/'
+    return RemoteFilePath(user, repo, ref, path)
 
-    return RemoteAction(user, repo, ref, path)
+
+def get_filepath(current, filepath):
+    # Resolve '/$XXX' to './.github/actions/$XXX'
+    if filepath.startswith('/'):
+        filepath = str(
+            pathlib.Path('.') / '.github' / 'actions' / filepath[1:])
+
+    if filepath.startswith('./'):
+        assert '@' not in filepath, (
+            "Local name {} shouldn't have an @ in it".format(filepath))
+
+    # If new is local but current is remote, rewrite to a remote.
+    if isinstance(current, RemoteFilePath) and filepath.startswith('./'):
+        old_filepath = filepath
+        new_action = current._replace(path=filepath[2:])
+        filepath = '{user}/{repo}/{path}@{ref}'.format(**new_action._asdict())
+        printerr('Rewrite local action {} in remote repo {} to: {}'.format(
+            old_filepath, current, filepath))
+
+    # Local file
+    if filepath.startswith('./'):
+        assert isinstance(current, LocalFilePath), (current, filepath)
+        localpath = (current.repo_root / filepath[2:]).resolve()
+        repopath = localpath.relative_to(current.repo_root)
+        return current._replace(path=repo_path)
+
+    # Remote file
+    else:
+        return parse_remote_path(filepath)
+
+
+DOWNLOAD_CACHE = {}
+
+
+def get_filepath_data(filepath):
+    # Get local data
+    if isinstance(filepath, LocalFilePath):
+        filename = filepath.repo_root / filepath.path
+        if not filename.exists():
+            return IOError('{} does not exist'.format(filename))
+        with open(filename) as f:
+            return f.read()
+
+    # Download remote data
+    elif isinstance(filepath, RemoteFilePath):
+        if filepath not in DOWNLOAD_CACHE:
+            url = 'https://raw.githubusercontent.com/{user}/{repo}/{ref}/{path}'.format(
+                **filepath._asdict())
+
+            printerr("Trying to download {}..".format(url), end=' ')
+            try:
+                yaml_data = urllib.request.urlopen(url).read().decode('utf-8')
+                printerr('Success!')
+            except urllib.error.URLError as e:
+                yaml_data = e
+                printerr('Failed ({})!'.format(e))
+
+            DOWNLOAD_CACHE[filepath] = yaml_data
+        return DOWNLOAD_CACHE[filepath]
+    else:
+        assert False
 
 
 ACTION_YAML_NAMES = [
-    'action.yml',
-    'action.yaml',
+    '/action.yml',
+    '/action.yaml',
 ]
 
 
-def printerr(*args, **kw):
-    print(*args, file=sys.stderr, **kw)
+def get_action_data(current_action, action_name):
+    action_dirpath = get_filepath(current_action, action_name)
+
+    errors = {}
+    for f in ACTION_YAML_NAMES:
+        action_filepath = action_dirpath._replace(path=action_dirpath.path+f)
+
+        data = get_filepath_data(action_filepath)
+
+        errors[action_filepath] = data
+        if isinstance(data, str):
+            break
+    else:
+        raise IOError(
+            '\n'.join(['Did not find {}, errors:'.format(action_name)] + [
+                '  {}: {}'.format(k, str(v))
+                for k, v in sorted(errors.items())
+            ]))
+
+    print("Including:", action_filepath)
+    yaml_data = yaml_load_and_expand(current_action, data)
+    assert 'runs' in yaml_data, pprint.pformat(yaml_data)
+    assert yaml_data['runs'].get(
+        'using', None) == 'includes', pprint.pformat(yaml_data)
+    return yaml_data
+
 
 
 def replace_inputs(yaml_item, inputs):
@@ -89,90 +177,6 @@ def replace_inputs(yaml_item, inputs):
 
 
 
-DOWNLOAD_CACHE = {}
-
-
-def get_remote_action_yaml(remote_action):
-    assert isinstance(remote_action, RemoteAction), remote_action
-    if remote_action not in DOWNLOAD_CACHE:
-        urlnames = [
-            'https://raw.githubusercontent.com/{user}/{repo}/{ref}/{path}{f}'.format(
-                f=f, **remote_action._asdict())
-            for f in ACTION_YAML_NAMES
-        ]
-        errors = {}
-        for u in urlnames:
-            try:
-                printerr("Trying to download {}..".format(u), end=' ')
-                yaml_data = urllib.request.urlopen(u).read().decode('utf-8')
-                printerr('Success!')
-            except urllib.error.URLError as e:
-                printerr('Failed!', e)
-                errors[u] = str(e)
-                continue
-            break
-        else:
-            raise IOError(
-                '\n'.join(['Did not find {}, errors:'.format(remote_action)] + [
-                    '  {}: {}'.format(k, str(v))
-                    for k, v in sorted(errors.items())
-                ]))
-        DOWNLOAD_CACHE[remote_action] = yaml_data
-    return DOWNLOAD_CACHE[remote_action]
-
-
-
-def get_action_yaml(current_action, action_name):
-    # Resolve '/$XXX' to './.github/actions/$XXX'
-    if action_name.startswith('/'):
-        action_name = str(
-            pathlib.Path('.') / '.github' / 'actions' / action_name[1:])
-
-    if action_name.startswith('./'):
-        assert '@' not in action_name, (
-            "Local name {} shouldn't have an @ in it".format(action_name))
-
-    # If action is local but current_action is remote, rewrite to a remote action.
-    if isinstance(current_action, RemoteAction) and action_name.startswith('./'):
-        old_action_name = action_name
-        new_action = current_action._replace(path=action_name[2:])
-        action_name = '{user}/{repo}/{path}@{ref}'.format(**new_action._asdict())
-        printerr('Rewrite local action {} in remote repo {} to: {}'.format(
-            old_action_name, current_action, action_name))
-
-    # Local actions can just be read directly from disk.
-    if action_name.startswith('./'):
-        printerr('Including local:', action_name)
-        assert isinstance(current_action, LocalAction), (current_action, action_name)
-        action_dirname = (current_action.repo_root / action_name[2:]).resolve()
-        if not action_dirname.exists():
-            raise IOError('Directory {} not found for action {}'.format(
-                action_dirname, action_name))
-        action_files = [action_dirname / f for f in ACTION_YAML_NAMES]
-        for f in action_files:
-            if f.exists():
-                action_filename = f.resolve()
-                break
-        else:
-            raise IOError("No action.yml or action.yaml file in {}".format(
-                action_dirname))
-
-        with open(action_filename) as f:
-            yaml_data = f.read()
-
-    # Remove actions have to be downloaded
-    else:
-        printerr('Including remote:', action_name)
-        current_action = parse_remote_action(action_name)
-        yaml_data = get_remote_action_yaml(current_action)
-
-    yaml_data = yaml_load_and_expand(current_action, yaml_data)
-    assert 'runs' in yaml_data, pprint.pformat(yaml_data)
-    assert yaml_data['runs'].get(
-        'using', None) == 'includes', pprint.pformat(yaml_data)
-    return yaml_data
-
-
 def expand_steps_list(current_action, yaml_list):
     out_list = []
     for i, v in list(enumerate(yaml_list)):
@@ -189,18 +193,7 @@ def expand_steps_list(current_action, yaml_list):
         if condition is False:
             continue
 
-        if isinstance(current_action, LocalAction):
-            if not out_list or out_list[0].get('uses', '') != INCLUDE_ACTION_NAME:
-                out_list.insert(0, {
-                    'uses': INCLUDE_ACTION_NAME,
-                    'continue-on-error': False,
-                    'with': {
-                        'workflow': str(os.path.relpath(
-                            current_action.filename, current_action.repo_root)),
-                    },
-                })
-
-        include_yamldata = get_action_yaml(current_action, v['includes'])
+        include_yamldata = get_action_data(current_action, v['includes'])
 
         if 'inputs' not in include_yamldata:
             include_yamldata['inputs'] = {}
@@ -279,7 +272,74 @@ def str_presenter(dumper, data):
     return dumper.represent_scalar('tag:yaml.org,2002:str', data)
 
 
+def none_presenter(dumper, data):
+    """Make empty values appear as nothing rather than 'null'"""
+    assert data is None, data
+    return dumper.represent_scalar('tag:yaml.org,2002:null', '')
+
+
+class On:
+    """`on` == `true`, so enable forcing it back to `on`"""
+
+    @staticmethod
+    def presenter(dumper, data):
+        return dumper.represent_scalar('tag:yaml.org,2002:bool', 'on')
+
+
 yaml.add_representer(str, str_presenter)
+yaml.add_representer(None.__class__, none_presenter)
+yaml.add_representer(On, On.presenter)
+
+
+def expand_workflow(current_workflow, to_path):
+    src_path = os.path.relpath('/'+str(current_workflow.path), start='/'+str(os.path.dirname(to_path)))
+
+    workflow_filepath = get_filepath(current_workflow, './'+str(current_workflow.path))
+    printerr('Expanding workflow file from:', workflow_filepath)
+    printerr('                          to:', to_path)
+    workflow_data = get_filepath_data(workflow_filepath)
+    if not isinstance(workflow_data, str):
+        raise workflow_data
+    workflow_data = workflow_data.splitlines()
+    output = []
+    while workflow_data[0] and workflow_data[0][0] == '#':
+        output.append(workflow_data.pop(0))
+
+    output.append("""
+# !! WARNING !!
+# Do not modify this file directly!
+# !! WARNING !!
+#
+# {}
+# using the script from https://github.com/mithro/actions-includes
+""".format(MARKER+str(src_path)))
+
+    data = yaml_load_and_expand(current_workflow, '\n'.join(workflow_data))
+    if True in data:
+        data[On()] = data.pop(True)
+
+    for j in data['jobs'].values():
+        assert 'steps' in j, pprint.pformat(j)
+        steps = j['steps']
+        assert isinstance(steps, list), pprint.pformat(j)
+
+        steps.insert(0, {
+            'uses': INCLUDE_ACTION_NAME,
+            'continue-on-error': False,
+            'with': {
+                'workflow': to_path,
+            },
+        })
+
+    printerr('')
+    printerr('Final yaml data:')
+    printerr('-'*75)
+    printerr(pprint.pformat(data))
+    printerr('-'*75)
+
+    output.append(yaml.dump(data, allow_unicode=True))
+
+    return '\n'.join(output)
 
 
 def main(args):
@@ -291,40 +351,19 @@ def main(args):
 
     _, from_filename, to_filename = args
 
-    from_filename = pathlib.Path(from_filename).resolve()
+    from_path = pathlib.Path(from_filename).resolve().relative_to(repo_root)
     if to_filename == '-':
         printerr("Expanding", from_filename, "to stdout")
-        src_path = str(from_filename)
-        to_file = sys.stdout
+        to_path = repo_root / 'out.yml'
     else:
-        to_filename = pathlib.Path(to_filename).resolve()
         printerr("Expanding", from_filename, "into", to_filename)
-        src_path = os.path.relpath(from_filename, start=to_filename.parent)
-        to_file = open(to_filename, 'w')
+        to_path = pathlib.Path(to_filename).resolve().relative_to(repo_root)
 
-    current_action = LocalAction(repo_root, to_filename)
+    current_action = LocalFilePath(repo_root, str(from_path))
+    out_data = expand_workflow(current_action, to_path)
+    with open(to_path, 'w') as f:
+        f.write(out_data)
 
-    with open(from_filename) as f:
-        input_data = f.read()
-
-    while input_data[0] == '#':
-        n = input_data.find('\n')
-        assert n != '-1', repr(input_data)
-        to_file.write(input_data[:n + 1])
-        input_data = input_data[n + 1:]
-
-    to_file.write("""
-# !! WARNING !!
-# Do not modify this file directly!
-# !! WARNING !!
-#
-# It is generated from: {}
-# using the script from https://github.com/mithro/actions-includes
-
-""".format(str(src_path)))
-
-    data = yaml_load_and_expand(current_action, input_data)
-    yaml.dump(data, stream=to_file, allow_unicode=True)
     return 0
 
 
