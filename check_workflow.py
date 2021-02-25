@@ -26,17 +26,17 @@ def get_file(filename):
 workflow_data = get_file(workflow_file)
 
 # Workout what the source workflow file name was
-startpos = workflow_data.find(actions_includes.MARKER)+len(actions_includes.MARKER)
+startpos = workflow_data.find(actions_includes.MARKER)
 endpos = workflow_data.find('\n', startpos)
 if startpos == -1 or endpos == -1:
     print()
-    print('Unable to find generation marker in', workflow_url)
+    print('Unable to find generation marker in', workflow_file)
     print('-'*75)
-    print(data)
+    print(workflow_data)
     print('-'*75)
     sys.exit(1)
 
-workflow_srcfile = workflow_data[startpos:endpos]
+workflow_srcfile = workflow_data[startpos+len(actions_includes.MARKER):endpos]
 workflow_srcpath = (pathlib.Path('/'+workflow_file).parent / workflow_srcfile).resolve()
 workflow_src = actions_includes.RemoteFilePath(USER, REPO, SHA, str(workflow_srcpath)[1:])
 print()
