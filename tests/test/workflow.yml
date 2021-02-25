@@ -1,0 +1,43 @@
+# Tests for actions-include
+jobs:
+  test-setting-default-false-to-true:
+    steps:
+    - run: |
+        echo "Pre-step"
+    - includes: mithro/actions-includes/tests/include@main
+      with:
+          message: 'Hello World'
+          use-last: true
+    - run: |
+        echo "Post-step"
+
+  test-setting-default-true-to-false:
+    steps:
+    - run: |
+        echo "Pre-step"
+    - includes: mithro/actions-includes/tests/include@main
+      with:
+          message: 'Hello World'
+          use-first: false
+    - run: |
+        echo "Post-step"
+
+  test-basic:
+    steps:
+    - includes: mithro/actions-includes/tests/include@main
+      with:
+          message: 'Hello World'
+
+  test-recursive:
+    steps:
+    - includes: mithro/actions-includes/tests/recursive@main
+      with:
+        use-first: true
+        use-last: true
+
+    - includes: mithro/actions-includes/tests/recursive@main
+
+    - includes: mithro/actions-includes/tests/recursive@main
+      with:
+        use-first: false
+        use-last: false

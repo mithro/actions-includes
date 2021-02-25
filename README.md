@@ -1,8 +1,8 @@
-# actions-include
+# actions-includes
 
-Allows including an action inside another action (by preprosing the Yaml file).
+Allows including an action inside another action (by preprocessing the Yaml file).
 
-Instead of using `uses` or `run` in your action step, instead use `includes`.
+Instead of using `uses` or `run` in your action step, use the keyword `includes`.
 
 
 ```yaml

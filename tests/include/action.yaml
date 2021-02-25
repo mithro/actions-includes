@@ -1,5 +1,5 @@
-name: Include Yaml test.
-description: "Testing action for actions-include"
+name: includes-include
+description: "Basic action to be included in other tests."
 
 inputs:
   use-first:
