@@ -4,6 +4,13 @@ Allows including an action inside another action (by preprocessing the Yaml file
 
 Instead of using `uses` or `run` in your action step, use the keyword `includes`.
 
+Once you are using the `includes` argument, the workflows can be expanded using
+the tool like follows;
+```
+# python -m actions_include <input-workflow-with-includes> <output-workflow-flattened>
+python -m actions_includes ./.github/workflows-src/workflow-a.yml ./.github/workflows/workflow-a.yml
+```
+
 
 ```yaml
 
