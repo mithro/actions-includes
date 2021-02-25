@@ -1,12 +1,20 @@
 #!/usr/bin/env python3
 #
-# Copyright (C) 2017-2021  The SymbiFlow Authors.
+# Copyright 2021 Google LLC
 #
-# Use of this source code is governed by a ISC-style
-# license that can be found in the LICENSE file or at
-# https://opensource.org/licenses/ISC
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# SPDX-License-Identifier: ISC
+#    https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
 
 
 import os
@@ -18,12 +26,27 @@ import urllib.request
 import pprint
 import yaml
 
+from collections import namedtuple
 
-_git_root_output = subprocess.check_output(
-    ['git', 'rev-parse', '--show-toplevel'])
 
-GIT_ROOT = pathlib.Path(_git_root_output.decode(
-    'utf-8').strip()).resolve()
+RemoteAction = namedtuple('RemoteAction', 'user repo ref path')
+
+
+def parse_remote_action(action_name):
+    assert not action_name.startswith('docker://'), action_name
+    if '@' not in action_name:
+        action_name = action_name + '@main'
+
+    repo_plus_path, ref = action_name.split('@', 1)
+    assert '@' not in ref, action_name
+    if repo_plus_path.count('/') == 1:
+        repo_plus_path += '/'
+
+    user, repo, path = repo_plus_path.split('/', 2)
+    if path and not path.endswith('/'):
+        path = path + '/'
+
+    return RemoteAction(user, repo, ref, path)
 
 
 ACTION_YAML_NAMES = [
@@ -63,41 +86,15 @@ def replace_inputs(yaml_item, inputs):
     return yaml_item
 
 
-def get_action_yaml(action_name):
-    action_filename = None
-    if action_name.startswith('./'):
-        action_filename = GIT_ROOT.join(action_name).resolve()
-    elif action_name.startswith('/'):
-        action_dirname = (
-            GIT_ROOT / '.github' / 'actions' / action_name[1:]).resolve()
-        if not action_dirname.exists():
-            raise IOError('Directory {} not found for action {}'.format(
-                action_dirname, action_name))
-        action_files = [action_dirname / f for f in ACTION_YAML_NAMES]
-        for f in action_files:
-            if f.exists():
-                action_filename = f.resolve()
-                break
-        else:
-            raise IOError("No action.yml or action.yaml file in {}".format(
-                action_dirname))
 
-    if not action_filename:
-        assert not action_name.startswith('docker://'), action_name
-        if '@' not in action_name:
-            action_name = action_name + '@main'
+DOWNLOAD_CACHE = {}
 
-        repo_plus_path, ref = action_name.split('@', 1)
-        if repo_plus_path.count('/') == 1:
-            repo_plus_path += '/'
 
-        user, repo, path = repo_plus_path.split('/', 2)
-        if path and not path.endswith('/'):
-            path = path + '/'
-
+def get_remote_action_yaml(remote_action):
+    if remote_action not in DOWNLOAD_CACHE:
         urlnames = [
             'https://raw.githubusercontent.com/{user}/{repo}/{ref}/{path}{f}'.format(
-                user=user, repo=repo, ref=ref, path=path, f=f)
+                f=f, **remote_action._asdict())
             for f in ACTION_YAML_NAMES
         ]
         errors = {}
@@ -113,22 +110,60 @@ def get_action_yaml(action_name):
             break
         else:
             raise IOError(
-                '\n'.join(['Did not find {}, errors:'] + [
+                '\n'.join(['Did not find {}, errors:'.format(remote_action)] + [
                     '  {}: {}'.format(k, str(v))
                     for k, v in sorted(errors.items())
                 ]))
-    else:
+        DOWNLOAD_CACHE[remote_action] = yaml_data
+    return DOWNLOAD_CACHE[remote_action]
+
+
+
+def get_action_yaml(repo_root, action_name):
+    # Resolve '/$XXX' to './.github/actions/$XXX'
+    if action_name.startswith('/'):
+        action_name = str(
+            pathlib.Path('.') / '.github' / 'actions' / action_name[1:])
+
+    # If action is local but repo_root is remote, rewrite to a remote action.
+    if isinstance(repo_root, RemoteAction) and action_name.startswith('./'):
+        new_action = repo_root._replace(path=action_name[2:])
+        action_name = '{user}/{repo}/{path}@{ref}'.format(**new_action._asdict())
+
+    # Local actions can just be read directly from disk.
+    if action_name.startswith('./'):
+        printerr('Including local:', action_name)
+        assert isinstance(repo_root, pathlib.Path), (repo_root, action_name)
+        action_dirname = (repo_root / action_name[2:]).resolve()
+        if not action_dirname.exists():
+            raise IOError('Directory {} not found for action {}'.format(
+                action_dirname, action_name))
+        action_files = [action_dirname / f for f in ACTION_YAML_NAMES]
+        for f in action_files:
+            if f.exists():
+                action_filename = f.resolve()
+                break
+        else:
+            raise IOError("No action.yml or action.yaml file in {}".format(
+                action_dirname))
+
         with open(action_filename) as f:
             yaml_data = f.read()
 
-    yaml_data = yaml_load_and_expand(yaml_data)
+    # Remove actions have to be downloaded
+    else:
+        printerr('Including remote:', action_name)
+        repo_root = parse_remote_action(action_name)
+        yaml_data = get_remote_action_yaml(repo_root)
+
+    yaml_data = yaml_load_and_expand(repo_root, yaml_data)
     assert 'runs' in yaml_data, pprint.pformat(yaml_data)
     assert yaml_data['runs'].get(
         'using', None) == 'includes', pprint.pformat(yaml_data)
     return yaml_data
 
 
-def expand_steps_list(yaml_list):
+def expand_steps_list(repo_root, yaml_list):
     out_list = []
     for i, v in list(enumerate(yaml_list)):
         if 'includes' not in v:
@@ -141,8 +176,7 @@ def expand_steps_list(yaml_list):
             out_list.append(v)
             continue
 
-        printerr('Including:', v['includes'])
-        include_yamldata = get_action_yaml(v['includes'])
+        include_yamldata = get_action_yaml(repo_root, v['includes'])
 
         if 'inputs' not in include_yamldata:
             include_yamldata['inputs'] = {}
@@ -178,32 +212,33 @@ def expand_steps_list(yaml_list):
     return out_list
 
 
-def expand_list(yaml_list):
+def expand_list(repo_root, yaml_list):
     for i, v in list(enumerate(yaml_list)):
-        yaml_list[i] = expand(v)
+        yaml_list[i] = expand(repo_root, v)
     return yaml_list
 
 
-def expand_dict(yaml_dict):
+def expand_dict(repo_root, yaml_dict):
     for k, v in list(yaml_dict.items()):
         if k == 'steps':
-            yaml_dict[k] = expand_steps_list(v)
+            yaml_dict[k] = expand_steps_list(repo_root, v)
         else:
-            yaml_dict[k] = expand(v)
+            yaml_dict[k] = expand(repo_root, v)
     return yaml_dict
 
 
-def expand(yaml_item):
+def expand(repo_root, yaml_item):
     if isinstance(yaml_item, dict):
-        return expand_dict(yaml_item)
+        return expand_dict(repo_root, yaml_item)
     elif isinstance(yaml_item, list):
-        return expand_list(yaml_item)
+        return expand_list(repo_root, yaml_item)
     else:
         return yaml_item
 
 
-def yaml_load_and_expand(yaml_data):
-    return expand(yaml.load(yaml_data, Loader=yaml.FullLoader))
+def yaml_load_and_expand(repo_root, yaml_data):
+    return expand(repo_root, yaml.load(
+        yaml_data, Loader=yaml.FullLoader))
 
 
 def str_presenter(dumper, data):
@@ -218,6 +253,13 @@ yaml.add_representer(str, str_presenter)
 
 
 def main(args):
+    git_root_output = subprocess.check_output(
+        ['git', 'rev-parse', '--show-toplevel'])
+
+    repo_root = pathlib.Path(git_root_output.decode(
+        'utf-8').strip()).resolve()
+
+
     _, from_filename, to_filename = args
 
     from_filename = pathlib.Path(from_filename).resolve()
@@ -247,7 +289,7 @@ def main(args):
 
 """.format(str(src_path)))
 
-    data = yaml_load_and_expand(input_data)
+    data = yaml_load_and_expand(repo_root, input_data)
     yaml.dump(data, stream=to_file, allow_unicode=True)
 
 

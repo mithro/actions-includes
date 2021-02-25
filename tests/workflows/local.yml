@@ -4,7 +4,7 @@ jobs:
     steps:
     - run: |
         echo "Pre-step"
-    - includes: ./tests/include@main
+    - includes: ./tests/include
       with:
           message: 'Hello World'
           use-last: true
@@ -15,7 +15,7 @@ jobs:
     steps:
     - run: |
         echo "Pre-step"
-    - includes: ./tests/include@main
+    - includes: ./tests/include
       with:
           message: 'Hello World'
           use-first: false
@@ -24,34 +24,34 @@ jobs:
 
   test-basic:
     steps:
-    - includes: ./tests/include@main
+    - includes: ./tests/include
       with:
           message: 'Hello World'
 
-  test-recursive-local:
+  test-recursive-local-with-local:
     steps:
-    - includes: ./tests/recursive/local@main
+    - includes: ./tests/recursive/local
       with:
         use-first: true
         use-last: true
 
-    - includes: ./tests/recursive/local@main
+    - includes: ./tests/recursive/local
 
-    - includes: ./tests/recursive/local@main
+    - includes: ./tests/recursive/local
       with:
         use-first: false
         use-last: false
 
-  test-recursive-remote:
+  test-recursive-local-with-remote:
     steps:
-    - includes: ./tests/recursive/remote@main
+    - includes: ./tests/recursive/remote
       with:
         use-first: true
         use-last: true
 
-    - includes: ./tests/recursive/remote@main
+    - includes: ./tests/recursive/remote
 
-    - includes: ./tests/recursive/remote@main
+    - includes: ./tests/recursive/remote
       with:
         use-first: false
         use-last: false

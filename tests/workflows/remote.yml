@@ -28,16 +28,30 @@ jobs:
       with:
           message: 'Hello World'
 
-  test-recursive:
+  test-recursive-remote-with-local:
     steps:
-    - includes: mithro/actions-includes/tests/recursive@main
+    - includes: mithro/actions-includes/tests/recursive/local@main
       with:
         use-first: true
         use-last: true
 
-    - includes: mithro/actions-includes/tests/recursive@main
+    - includes: mithro/actions-includes/tests/recursive/local@main
 
-    - includes: mithro/actions-includes/tests/recursive@main
+    - includes: mithro/actions-includes/tests/recursive/local@main
+      with:
+        use-first: false
+        use-last: false
+
+  test-recursive-remote-with-remote:
+    steps:
+    - includes: mithro/actions-includes/tests/recursive/remote@main
+      with:
+        use-first: true
+        use-last: true
+
+    - includes: mithro/actions-includes/tests/recursive/remote@main
+
+    - includes: mithro/actions-includes/tests/recursive/remote@main
       with:
         use-first: false
         use-last: false
