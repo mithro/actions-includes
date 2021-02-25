@@ -34,6 +34,14 @@ def printerr(*args, **kw):
     print(*args, file=sys.stderr, **kw)
 
 
+DEBUG = bool(os.environ.get('DEBUG', False))
+
+
+def printdbg(*args, **kw):
+    if DEBUG:
+        print(*args, file=sys.stderr, **kw)
+
+
 MARKER = "It is generated from: "
 INCLUDE_ACTION_NAME = 'mithro/actions-includes@main'
 
@@ -143,7 +151,7 @@ def get_action_data(current_action, action_name):
                 for k, v in sorted(errors.items())
             ]))
 
-    print("Including:", action_filepath)
+    printerr("Including:", action_filepath)
     yaml_data = yaml_load_and_expand(current_action, data)
     assert 'runs' in yaml_data, pprint.pformat(yaml_data)
     assert yaml_data['runs'].get(
@@ -270,10 +278,10 @@ def expand_steps_list(current_action, yaml_list):
                 if not vs.startswith('${{'):
                     step['if'] = '${{ '+step['if']+' }}'
 
-            print('Inputs:', inputs)
-            print('Before:', step)
+            printdbg('Inputs:', inputs)
+            printdbg('Before:', step)
             replace_inputs(step, inputs)
-            print('After1:', step)
+            printdbg('After1:', step)
             if 'if' in step:
                 vs = step['if']
                 assert isinstance(vs, str), vs
@@ -281,14 +289,14 @@ def expand_steps_list(current_action, yaml_list):
                 assert vs.startswith('${{'), vs
                 assert vs.endswith('}}'), vs
                 step['if'] = vs[3:-2].strip()
-            print('After2:', step)
+            printdbg('After2:', step)
 
             if 'if' in step:
                 if step['if'] == 'false':
                     continue
                 if step['if'] == 'true':
                     del step['if']
-            print('After3:', step)
+            printdbg('After3:', step)
 
             if condition is not None:
                 if 'if' in step:
@@ -404,11 +412,11 @@ def expand_workflow(current_workflow, to_path):
             },
         })
 
-    printerr('')
-    printerr('Final yaml data:')
-    printerr('-'*75)
-    printerr(pprint.pformat(data))
-    printerr('-'*75)
+    printdbg('')
+    printdbg('Final yaml data:')
+    printdbg('-'*75)
+    printdbg(pprint.pformat(data))
+    printdbg('-'*75)
 
     output.append(yaml.dump(data, allow_unicode=True, sort_keys=False))
 
