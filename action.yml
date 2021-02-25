@@ -10,4 +10,6 @@ runs:
   steps:
   - shell: bash
     run: |
+      sudo apt-get -y install python3-yaml
+      python3 --version
       python3 "${{ github.action_path }}/check_workflow.py" "${{ inputs.workflow }}"
