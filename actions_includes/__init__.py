@@ -19,11 +19,12 @@
 
 import os
 import pathlib
+import pprint
 import subprocess
 import sys
+import tempfile
 import urllib
 import urllib.request
-import pprint
 import yaml
 
 from collections import namedtuple
@@ -358,6 +359,10 @@ yaml.add_representer(On, On.presenter)
 
 def expand_workflow(current_workflow, to_path):
     src_path = os.path.relpath('/'+str(current_workflow.path), start='/'+str(os.path.dirname(to_path)))
+    if isinstance(current_workflow, LocalFilePath):
+        dst_path = os.path.relpath(to_path, start=current_workflow.repo_root)
+    else:
+        dst_path = to_path
 
     workflow_filepath = get_filepath(current_workflow, './'+str(current_workflow.path))
     printerr('Expanding workflow file from:', workflow_filepath)
@@ -395,7 +400,7 @@ def expand_workflow(current_workflow, to_path):
             'uses': INCLUDE_ACTION_NAME,
             'continue-on-error': False,
             'with': {
-                'workflow': str(to_path),
+                'workflow': str(dst_path),
             },
         })
 
@@ -411,28 +416,49 @@ def expand_workflow(current_workflow, to_path):
 
 
 def main(args):
-    git_root_output = subprocess.check_output(
-        ['git', 'rev-parse', '--show-toplevel'])
+    tfile = None
+    try:
+        git_root_output = subprocess.check_output(
+            ['git', 'rev-parse', '--show-toplevel'])
 
-    repo_root = pathlib.Path(git_root_output.decode(
-        'utf-8').strip()).resolve()
+        repo_root = pathlib.Path(git_root_output.decode(
+            'utf-8').strip()).resolve()
 
-    _, from_filename, to_filename = args
+        _, from_filename, to_filename = args
 
-    from_path = pathlib.Path(from_filename).resolve().relative_to(repo_root)
-    if to_filename == '-':
-        printerr("Expanding", from_filename, "to stdout")
-        to_path = repo_root / 'out.yml'
-    else:
-        printerr("Expanding", from_filename, "into", to_filename)
-        to_path = pathlib.Path(to_filename).resolve().relative_to(repo_root)
+        from_path = pathlib.Path(from_filename).resolve().relative_to(repo_root)
+        if to_filename == '-':
+            printerr("Expanding", from_filename, "to stdout")
 
-    current_action = LocalFilePath(repo_root, str(from_path))
-    out_data = expand_workflow(current_action, to_path)
-    with open(to_path, 'w') as f:
-        f.write(out_data)
+            outdir = repo_root / '.github' / 'workflows'
+            outdir.mkdir(parents=True, exist_ok=True)
+            outfile = os.path.basename(from_filename)
+            outpath = outdir / outfile
+            i = 0
+            while outpath.exists():
+                printerr("File", outpath, "exists")
+                outpath = outdir / f'{i}.{outfile}'
+                i += 1
 
-    return 0
+            tfile = outpath
+            to_path = outpath
+        else:
+            printerr("Expanding", from_filename, "into", to_filename)
+            to_path = pathlib.Path(to_filename).resolve().relative_to(repo_root)
+
+        current_action = LocalFilePath(repo_root, str(from_path))
+        out_data = expand_workflow(current_action, to_path)
+        with open(to_path, 'w') as f:
+            f.write(out_data)
+
+        return 0
+    finally:
+        if tfile is not None:
+            with open(tfile) as f:
+                print(f.read())
+
+            os.unlink(tfile)
+            tfile = None
 
 
 if __name__ == "__main__":
