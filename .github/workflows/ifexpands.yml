@@ -21,65 +21,11 @@
 # It is generated from: ../../tests/workflows/ifexpands.yml
 # using the script from https://github.com/mithro/actions-includes
 
+on:
+  push:
+  pull_request:
 jobs:
   test-setting-default-false-to-true:
-    runs-on: ubuntu-latest
-    steps:
-    - continue-on-error: false
-      uses: mithro/actions-includes@main
-      with:
-        workflow: .github/workflows/ifexpands.yml
-    - if: matrix.use-first
-      name: First step
-      run: |
-        echo "First step!"
-    - name: Middle step
-      run: |
-        echo "${{ 'Hello World' }}"
-    - if: matrix.use-first
-      name: First step
-      run: |
-        echo "First step!"
-    - name: Middle step
-      run: |
-        echo "${{ 'Hello World' }}"
-    - if: matrix.use-first
-      name: Last step
-      run: |
-        echo "Last step!"
-    - if: matrix.use-last
-      name: First step
-      run: |
-        echo "First step!"
-    - name: Middle step
-      run: |
-        echo "${{ 'Hello World' }}"
-    - if: matrix.use-last
-      name: Last step
-      run: |
-        echo "Last step!"
-    - name: First step
-      run: |
-        echo "First step!"
-    - name: Middle step
-      run: |
-        echo "${{ 'Hello World' }}"
-    - if: matrix.use-last
-      name: Last step
-      run: |
-        echo "Last step!"
-    - if: matrix.use-first && matrix.use-last
-      name: Step
-      run: |
-        echo "Hello world!"
-    - if: matrix.use-first && false
-      name: Step
-      run: |
-        echo "Hello world!"
-    - if: true && matrix.use-last
-      name: Step
-      run: |
-        echo "Hello world!"
     strategy:
       matrix:
         use-first:
@@ -88,6 +34,60 @@ jobs:
         use-last:
         - true
         - false
-on:
-  pull_request:
-  push:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: mithro/actions-includes@main
+      continue-on-error: false
+      with:
+        workflow: .github/workflows/ifexpands.yml
+    - name: First step
+      if: matrix.use-first
+      run: |
+        echo "First step!"
+    - name: Middle step
+      run: |
+        echo "${{ 'Hello World' }}"
+    - name: First step
+      if: matrix.use-first
+      run: |
+        echo "First step!"
+    - name: Middle step
+      run: |
+        echo "${{ 'Hello World' }}"
+    - name: Last step
+      if: matrix.use-first
+      run: |
+        echo "Last step!"
+    - name: First step
+      if: matrix.use-last
+      run: |
+        echo "First step!"
+    - name: Middle step
+      run: |
+        echo "${{ 'Hello World' }}"
+    - name: Last step
+      if: matrix.use-last
+      run: |
+        echo "Last step!"
+    - name: First step
+      run: |
+        echo "First step!"
+    - name: Middle step
+      run: |
+        echo "${{ 'Hello World' }}"
+    - name: Last step
+      if: matrix.use-last
+      run: |
+        echo "Last step!"
+    - name: Step
+      if: matrix.use-first && matrix.use-last
+      run: |
+        echo "Hello world!"
+    - name: Step
+      if: matrix.use-first && false
+      run: |
+        echo "Hello world!"
+    - name: Step
+      if: true && matrix.use-last
+      run: |
+        echo "Hello world!"

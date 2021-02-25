@@ -21,12 +21,49 @@
 # It is generated from: ../../tests/workflows/remote.yml
 # using the script from https://github.com/mithro/actions-includes
 
+on:
+  push:
+  pull_request:
 jobs:
+  test-setting-default-false-to-true:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: mithro/actions-includes@main
+      continue-on-error: false
+      with:
+        workflow: .github/workflows/remote.yml
+    - run: |
+        echo "Pre-step"
+    - name: First step
+      run: |
+        echo "First step!"
+    - name: Middle step
+      run: |
+        echo "${{ 'Hello World' }}"
+    - name: Last step
+      run: |
+        echo "Last step!"
+    - run: |
+        echo "Post-step"
+  test-setting-default-true-to-false:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: mithro/actions-includes@main
+      continue-on-error: false
+      with:
+        workflow: .github/workflows/remote.yml
+    - run: |
+        echo "Pre-step"
+    - name: Middle step
+      run: |
+        echo "${{ 'Hello World' }}"
+    - run: |
+        echo "Post-step"
   test-basic:
     runs-on: ubuntu-latest
     steps:
-    - continue-on-error: false
-      uses: mithro/actions-includes@main
+    - uses: mithro/actions-includes@main
+      continue-on-error: false
       with:
         workflow: .github/workflows/remote.yml
     - name: First step
@@ -38,8 +75,8 @@ jobs:
   test-recursive-remote-with-local:
     runs-on: ubuntu-latest
     steps:
-    - continue-on-error: false
-      uses: mithro/actions-includes@main
+    - uses: mithro/actions-includes@main
+      continue-on-error: false
       with:
         workflow: .github/workflows/remote.yml
     - name: Middle step
@@ -72,8 +109,8 @@ jobs:
   test-recursive-remote-with-remote:
     runs-on: ubuntu-latest
     steps:
-    - continue-on-error: false
-      uses: mithro/actions-includes@main
+    - uses: mithro/actions-includes@main
+      continue-on-error: false
       with:
         workflow: .github/workflows/remote.yml
     - name: Middle step
@@ -103,40 +140,3 @@ jobs:
     - name: Middle step
       run: |
         echo "${{ 'Middle step' }}"
-  test-setting-default-false-to-true:
-    runs-on: ubuntu-latest
-    steps:
-    - continue-on-error: false
-      uses: mithro/actions-includes@main
-      with:
-        workflow: .github/workflows/remote.yml
-    - run: |
-        echo "Pre-step"
-    - name: First step
-      run: |
-        echo "First step!"
-    - name: Middle step
-      run: |
-        echo "${{ 'Hello World' }}"
-    - name: Last step
-      run: |
-        echo "Last step!"
-    - run: |
-        echo "Post-step"
-  test-setting-default-true-to-false:
-    runs-on: ubuntu-latest
-    steps:
-    - continue-on-error: false
-      uses: mithro/actions-includes@main
-      with:
-        workflow: .github/workflows/remote.yml
-    - run: |
-        echo "Pre-step"
-    - name: Middle step
-      run: |
-        echo "${{ 'Hello World' }}"
-    - run: |
-        echo "Post-step"
-on:
-  pull_request:
-  push:

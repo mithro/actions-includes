@@ -380,8 +380,11 @@ def expand_workflow(current_workflow, to_path):
 """.format(MARKER+str(src_path)))
 
     data = yaml_load_and_expand(current_workflow, '\n'.join(workflow_data))
-    if True in data:
-        data[On()] = data.pop(True)
+    new_data = {}
+    new_data[On()] = data.pop(True)
+    for k, v in data.items():
+        new_data[k] = v
+    data = new_data
 
     for j in data['jobs'].values():
         assert 'steps' in j, pprint.pformat(j)
@@ -402,7 +405,7 @@ def expand_workflow(current_workflow, to_path):
     printerr(pprint.pformat(data))
     printerr('-'*75)
 
-    output.append(yaml.dump(data, allow_unicode=True))
+    output.append(yaml.dump(data, allow_unicode=True, sort_keys=False))
 
     return '\n'.join(output)
 
