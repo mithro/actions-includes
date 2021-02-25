@@ -34,13 +34,15 @@ jobs:
       run: |
         echo "First step!"
     - name: Middle step
-      run: echo "${{ Hello World }}"
+      run: |
+        echo "${{ 'Hello World' }}"
     - if: matrix.use-first
       name: First step
       run: |
         echo "First step!"
     - name: Middle step
-      run: echo "${{ Hello World }}"
+      run: |
+        echo "${{ 'Hello World' }}"
     - if: matrix.use-first
       name: Last step
       run: |
@@ -50,7 +52,8 @@ jobs:
       run: |
         echo "First step!"
     - name: Middle step
-      run: echo "${{ Hello World }}"
+      run: |
+        echo "${{ 'Hello World' }}"
     - if: matrix.use-last
       name: Last step
       run: |
@@ -59,7 +62,8 @@ jobs:
       run: |
         echo "First step!"
     - name: Middle step
-      run: echo "${{ Hello World }}"
+      run: |
+        echo "${{ 'Hello World' }}"
     - if: matrix.use-last
       name: Last step
       run: |

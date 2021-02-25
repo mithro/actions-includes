@@ -41,8 +41,8 @@ runs:
   - includes: ./tests/include
     with:
         message: 'Middle step'
-        use-first: inputs.use-first
-        use-last: inputs.use-last
+        use-first: ${{ inputs.use-first }}
+        use-last: ${{ inputs.use-last }}
 
   - includes: ./tests/include
     if: inputs.use-last

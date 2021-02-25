@@ -151,8 +151,26 @@ def get_action_data(current_action, action_name):
 
 
 def to_eval_literal(v):
+    """
+    >>> to_eval_literal(None)
+    'null'
+    >>> to_eval_literal(True)
+    'true'
+    >>> to_eval_literal(False)
+    'false'
+    >>> to_eval_literal(711)
+    '711'
+    >>> to_eval_literal(2.0)
+    '2.0'
+    >>> to_eval_literal('Mona the Octocat')
+    "'Mona the Octocat'"
+    >>> to_eval_literal("It's open source")
+    "It''s open source"
+    """
+    if isinstance(v, Value):
+        return v
     # myNull: ${{ null }}
-    if v is None:
+    elif v is None:
         return 'null'
     # myBoolean: ${{ false }}
     elif v is True:
@@ -168,10 +186,8 @@ def to_eval_literal(v):
     # myEscapedString: ${{ 'It''s open source!' }}
     elif isinstance(v, str):
         if "'" in v:
-            v.replace("'", "''")
+            v = v.replace("'", "''")
         return "'{}'".format(v)
-    elif isinstance(v, Value):
-        return str(v)
     # myHexNumber: ${{ 0xff }}
 
 
@@ -187,8 +203,7 @@ def replace_inputs(yaml_item, inputs):
     elif isinstance(yaml_item, str):
         if 'inputs.' in yaml_item:
             for f, t in inputs.items():
-                yaml_item = yaml_item.replace('inputs.' + f, to_eval_literal(yt))
-            yaml_item = yaml.safe_load(yaml_item)
+                yaml_item = yaml_item.replace('inputs.' + f, to_eval_literal(t))
     return yaml_item
 
 
@@ -208,9 +223,14 @@ def expand_steps_list(current_action, yaml_list):
             out_list.append(v)
             continue
 
-        condition = v.get('if', True)
-        if condition is False:
-            continue
+        condition = None
+        if 'if' in v:
+            vs = v['if'].strip()
+            if vs.startswith('${{'):
+                assert vs.endswith('}}'), vs
+                condition = Value(vs[3:-2].strip())
+            else:
+                condition = Value(vs)
 
         include_yamldata = get_action_data(current_action, v['includes'])
 
@@ -233,8 +253,8 @@ def expand_steps_list(current_action, yaml_list):
             if isinstance(v, str):
                 vs = v.strip()
                 if vs.startswith('${{'):
-                    assert vs.endswith('}}')
-                inputs[in_name] = Value(vs[3:-2])
+                    assert vs.endswith('}}'), vs
+                    inputs[in_name] = Value(vs[3:-2].strip())
 
         assert 'runs' in include_yamldata, include_yamldata
         assert 'steps' in include_yamldata['runs'], include_yamldata['steps']
@@ -242,19 +262,38 @@ def expand_steps_list(current_action, yaml_list):
         steps = include_yamldata['runs']['steps']
         while len(steps) > 0:
             step = steps.pop(0)
+            if 'if' in step:
+                vs = step['if']
+                assert isinstance(vs, str), vs
+                vs = vs.strip()
+                if not vs.startswith('${{'):
+                    step['if'] = '${{ '+step['if']+' }}'
+
+            print('Inputs:', inputs)
+            print('Before:', step)
             replace_inputs(step, inputs)
+            print('After1:', step)
+            if 'if' in step:
+                vs = step['if']
+                assert isinstance(vs, str), vs
+                vs = vs.strip()
+                assert vs.startswith('${{'), vs
+                assert vs.endswith('}}'), vs
+                step['if'] = vs[3:-2].strip()
+            print('After2:', step)
 
             if 'if' in step:
-                if step['if'] is False:
+                if step['if'] == 'false':
                     continue
-                if step['if'] is True:
+                if step['if'] == 'true':
                     del step['if']
+            print('After3:', step)
 
-            if condition is not True:
+            if condition is not None:
                 if 'if' in step:
-                    step['if'] = '{} && ({})'.format(condition, step['if'])
+                    step['if'] = '{} && ({})'.format(to_eval_literal(condition), step['if'])
                 else:
-                    step['if'] = condition
+                    step['if'] = to_eval_literal(condition)
 
             out_list.append(step)
 

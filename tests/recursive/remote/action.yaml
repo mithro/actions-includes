@@ -41,8 +41,8 @@ runs:
   - includes: mithro/actions-includes/tests/include@main
     with:
         message: 'Middle step'
-        use-first: inputs.use-first
-        use-last: inputs.use-last
+        use-first: ${{ inputs.use-first }}
+        use-last: ${{ inputs.use-last }}
 
   - includes: mithro/actions-includes/tests/include@main
     if: inputs.use-last
