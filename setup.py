@@ -18,16 +18,26 @@
 
 import setuptools
 
+
+def get_version():
+    from setuptools_scm.version import get_local_node_and_date
+    def clean_scheme(version):
+        return get_local_node_and_date(version) if version.dirty else ''
+
+    return {
+        'write_to': 'actions_includes/version.py',
+        'version_scheme': 'post-release',
+        'local_scheme': clean_scheme,
+    }
+
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+
 setuptools.setup(
     name="actions-includes",
-    use_scm_version = {
-        'write_to': 'actions_includes/version.py',
-        'version_scheme': 'post-release',
-        'local_scheme': 'node-and-timestamp',
-    },
+    use_scm_version = get_version,
     author="Tim 'mithro' Ansell",
     author_email="tansell@google.com",
     description="""\
