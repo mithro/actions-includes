@@ -3,7 +3,7 @@ name: PyPI
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   build-n-publish:
