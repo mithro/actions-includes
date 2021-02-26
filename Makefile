@@ -21,7 +21,7 @@ ACTIVATE=[[ -e venv/bin/activate ]] && source venv/bin/activate;
 SHELL := /bin/bash
 
 clean:
-	rm -rf build dist pythondata_*.egg-info
+	rm -rf build dist actions_includes.egg-info
 
 .PHONY: clean
 
