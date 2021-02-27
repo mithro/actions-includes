@@ -5,11 +5,7 @@ inputs:
     description: 'Workflow file to check include expansion'
     required: true
 runs:
-  using: "composite"
-
-  steps:
-  - shell: bash
-    run: |
-      sudo apt-get -y install python3-yaml
-      python3 --version
-      python3 "${{ github.action_path }}/check_workflow.py" "${{ inputs.workflow }}"
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - ${{ inputs.workflow }}
