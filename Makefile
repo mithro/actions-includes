@@ -68,9 +68,9 @@ help:
 
 # Docker image building
 image: build
+	rm -f ./docker/*.tar.gz
 	cp dist/*.tar.gz ./docker/
 	docker build -t actions-includes docker
-	rm ./docker/*.tar.gz
 
 .PHONY: image
 
