@@ -60,7 +60,7 @@ jobs:
       id: docker_meta
       uses: crazy-max/ghaction-docker-meta@v1
       with:
-        images: mithro/actions-includes,ghcr.io/mithro/actions-includes
+        images: ghcr.io/mithro/actions-includes,localhost:5000/mithro/actions-includes
         tag-sha: true
 
     - name: Set up QEMU
@@ -84,6 +84,9 @@ jobs:
 #        platforms: linux/amd64,linux/arm64,linux/386
 #        push: ${{ github.event_name != 'pull_request' && secrets.GHA_CR_TOKEN != '' }}
         push: ${{ github.event_name != 'pull_request' }}
-        registry: docker.pkg.github.com
         tags: ${{ steps.docker_meta.outputs.tags }}
         labels: ${{ steps.docker_meta.outputs.labels }}
+
+    - name: Inspect
+      run: |
+        docker buildx imagetools inspect localhost:5000/mithro/actions-includes:latest
