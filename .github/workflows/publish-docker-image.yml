@@ -104,10 +104,13 @@ jobs:
         context: docker
 #        platforms: linux/amd64,linux/arm64,linux/386
 #        push: ${{ github.event_name != 'pull_request' && secrets.GHA_CR_TOKEN != '' }}
-        push: ${{ github.event_name != 'pull_request' }}
-        tags: ${{ steps.docker_meta.outputs.tags }}
+        push: true
+        tags: |
+          ${{ steps.docker_meta.outputs.tags }}
+          localhost:5000/mithro/actions-includes:latest
         labels: ${{ steps.docker_meta.outputs.labels }}
 
     - name: Inspect
       run: |
-        docker buildx imagetools inspect localhost:5000/mithro/actions-includes:${{ steps.docker_build.outputs.digest }}
+        docker buildx ls
+        docker buildx imagetools inspect localhost:5000/mithro/actions-includes:latest
