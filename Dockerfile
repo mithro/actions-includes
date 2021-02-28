@@ -2,6 +2,10 @@ FROM python:slim-buster
 
 # Update and install the python3-yaml package.
 RUN \
+	apt update -qq \
+	&& apt-get -y install git
+
+RUN \
 	python --version \
 	&& pip --version
 
@@ -16,4 +20,6 @@ RUN \
 	cd /action-includes \
 	&& python -m actions_includes tests/workflows/local.yml -
 
-ENTRYPOINT ["/action-includes/check_workflow.py"]
+
+ENTRYPOINT ["python3", "-m", "actions_includes.check"]
+CMD ["--help"]
