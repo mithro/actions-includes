@@ -1,0 +1,71 @@
+# Copyright 2021 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Publish Docker image
+
+on:
+  push:
+
+jobs:
+  push_to_registry:
+    name: Push Docker image to GitHub Packages
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        # Always clone the full depth so git-describe works.
+        fetch-depth: 0
+        submodules: true
+
+    - name: Set up Python 🐍 ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+
+    - name: Install build dependencies
+      run: |
+        pip install -U pip
+        pip install -U setuptools wheel twine
+
+    - name: Install package dependencies
+      run: |
+        python setup.py install
+
+    - name: Build distribution 📦
+      run: |
+        python setup.py sdist bdist_wheel
+
+    - name: Check distribution 📦
+      run: |
+        twine check dist/*
+
+    - name: Build the docker image
+      run: |
+        docker build .
+
+    - name: Check the docker image
+      run: |
+        docker run tests/workflows/local.yml -
+
+    - name: Push to GitHub Packages
+      if: secrets.GITHUB_TOKEN
+      uses: docker/build-push-action@v1
+      with:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        registry: docker.pkg.github.com
+        repository: mithro/actions-includes/image
+        tag_with_ref: true
