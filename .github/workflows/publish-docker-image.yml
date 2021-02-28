@@ -60,9 +60,13 @@ jobs:
       run: |
         twine check dist/*
 
-    - name: Check the docker image
+#    - name: Check the docker image
+#      run: |
+#        make image-test
+
+    - name: Copy into docker
       run: |
-        make image-test
+        cp dist/* ./docker/
 
     - name: Docker meta
       id: docker_meta
