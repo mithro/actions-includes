@@ -11,5 +11,9 @@ RUN \
 	cd /action-includes \
 	&& pip install . --progress-bar off
 
+# Check the installed actions-includes tool
+RUN \
+	cd /action-includes \
+	&& python -m actions_includes tests/workflows/local.yml -
 
 ENTRYPOINT ["/action-includes/check_workflow.py"]
