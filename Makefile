@@ -43,7 +43,7 @@ enter:
 .PHONY: enter
 
 
-build:
+build: clean
 	${ACTIVATE} python setup.py sdist bdist_wheel
 
 .PHONY: build
@@ -66,5 +66,75 @@ help:
 
 .PHONY: help
 
+# Docker image building
+image: build
+	cp dist/*.tar.gz ./docker/
+	docker build -t actions-includes docker
+	rm ./docker/*.tar.gz
+
+.PHONY: image
+
+# Example GitHub action container launch command;
+#  --name ghcriomithroactionsincludes_1d5649
+#  --label 5588e4
+#  --workdir /github/workspace
+#  --rm
+#  -e INPUT_WORKFLOW
+#  -e HOME
+#  -e GITHUB_JOB
+#  -e GITHUB_REF
+#  -e GITHUB_SHA
+#  -e GITHUB_REPOSITORY
+#  -e GITHUB_REPOSITORY_OWNER
+#  -e GITHUB_RUN_ID
+#  -e GITHUB_RUN_NUMBER
+#  -e GITHUB_RETENTION_DAYS
+#  -e GITHUB_ACTOR
+#  -e GITHUB_WORKFLOW
+#  -e GITHUB_HEAD_REF
+#  -e GITHUB_BASE_REF
+#  -e GITHUB_EVENT_NAME
+#  -e GITHUB_SERVER_URL
+#  -e GITHUB_API_URL
+#  -e GITHUB_GRAPHQL_URL
+#  -e GITHUB_WORKSPACE
+#  -e GITHUB_ACTION
+#  -e GITHUB_EVENT_PATH
+#  -e GITHUB_ACTION_REPOSITORY
+#  -e GITHUB_ACTION_REF
+#  -e GITHUB_PATH
+#  -e GITHUB_ENV
+#  -e RUNNER_OS
+#  -e RUNNER_TOOL_CACHE
+#  -e RUNNER_TEMP
+#  -e RUNNER_WORKSPACE
+#  -e ACTIONS_RUNTIME_URL
+#  -e ACTIONS_RUNTIME_TOKEN
+#  -e ACTIONS_CACHE_URL
+#  -e GITHUB_ACTIONS=true
+#  -e CI=true
+#  -v "/var/run/docker.sock":"/var/run/docker.sock"
+#  -v "/home/runner/work/_temp/_github_home":"/github/home"
+#  -v "/home/runner/work/_temp/_github_workflow":"/github/workflow"
+#  -v "/home/runner/work/_temp/_runner_file_commands":"/github/file_commands"
+#  -v "/home/runner/work/actions-includes/actions-includes":"/github/workspace"
+#  ghcr.io/mithro/actions-includes
+#  "action.yml"
+
+image-test: image
+	GITHUB_REPOSITORY=mithro/actions-includes \
+	GITHUB_SHA=$$(git rev-parse HEAD) \
+	docker run \
+		--workdir /github/workspace \
+		--rm \
+		-e GITHUB_SHA \
+		-e GITHUB_REPOSITORY \
+		-v "$$PWD":"/github/workspace" \
+		actions-includes \
+		.github/workflows/local.yml
+
+.PHONY: image
+
+# Redirect anything else to setup.py
 %:
 	${ACTIVATE} python setup.py $@

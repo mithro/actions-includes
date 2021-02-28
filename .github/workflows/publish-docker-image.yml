@@ -54,18 +54,19 @@ jobs:
 
     - name: Build the docker image
       run: |
-        docker build .
+        make image
 
     - name: Check the docker image
       run: |
-        docker run tests/workflows/local.yml -
+        make image-test
 
-    - name: Push to GitHub Packages
-      if: secrets.GITHUB_TOKEN
+    - name: Push to GitHub Packages Docker Container Registry
+#      if: secrets.GHA_CR_TOKEN != ''
       uses: docker/build-push-action@v1
       with:
+        path: docker
         username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        password: ${{ secrets.GHA_CR_TOKEN }}
         registry: docker.pkg.github.com
         repository: mithro/actions-includes/image
         tag_with_ref: true

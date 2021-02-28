@@ -139,3 +139,4 @@ cython_debug/
 
 # Generated version file
 actions_includes/version.py
+docker/*.tar.gz

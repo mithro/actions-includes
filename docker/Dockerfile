@@ -21,10 +21,15 @@ RUN \
 	&& pip --version
 
 # Install the actions-includes tool
-COPY dist/*.zip
+COPY ./*.tar.gz /
 RUN \
-	pip install *.zip \
-	&& rm *.zip
+	ls -l /*.tar.gz \
+	&& pip install /*.tar.gz --progress-bar off \
+	&& rm -rf ~/.cache/pip \
+	&& rm /*.tar.gz \
+	&& mkdir -p /github/workspace
+
+WORKDIR /github/workspace
 
 ENTRYPOINT ["python3", "-m", "actions_includes.check"]
 CMD ["--help"]
