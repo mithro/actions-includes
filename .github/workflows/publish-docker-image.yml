@@ -68,7 +68,8 @@ jobs:
       id: docker_meta
       uses: crazy-max/ghaction-docker-meta@v1
       with:
-        images: ghcr.io/mithro/actions-includes,localhost:5000/mithro/actions-includes
+#        images: ghcr.io/mithro/actions-includes,localhost:5000/mithro/actions-includes
+        images: localhost:5000/mithro/actions-includes
         tag-sha: true
 
     - name: Set up QEMU
@@ -86,6 +87,11 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GHA_CR_TOKEN }}
         registry: docker.pkg.github.com
+
+    - name: Login to local registry
+      uses: docker/login-action@v1
+      with:
+        registry: localhost:5000
 
     - name: Build and push
       uses: docker/build-push-action@v2
