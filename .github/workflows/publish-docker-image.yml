@@ -99,6 +99,7 @@ jobs:
 
     - name: Build and push
       uses: docker/build-push-action@v2
+      id: docker_build
       with:
         context: docker
 #        platforms: linux/amd64,linux/arm64,linux/386
@@ -109,4 +110,4 @@ jobs:
 
     - name: Inspect
       run: |
-        docker buildx imagetools inspect localhost:5000/mithro/actions-includes:latest
+        docker buildx imagetools inspect localhost:5000/mithro/actions-includes:${{ steps.docker_build.outputs.digest }}
