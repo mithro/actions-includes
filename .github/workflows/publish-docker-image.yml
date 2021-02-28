@@ -52,10 +52,6 @@ jobs:
       run: |
         twine check dist/*
 
-    - name: Build the docker image
-      run: |
-        make image
-
     - name: Check the docker image
       run: |
         make image-test
