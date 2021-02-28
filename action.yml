@@ -22,6 +22,6 @@ inputs:
     required: true
 runs:
   using: 'docker'
-  image: 'Dockerfile'
+  image: docker://ghcr.io/mithro/actions-includes/image:main
   args:
     - ${{ inputs.workflow }}
