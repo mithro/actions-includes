@@ -72,7 +72,7 @@ jobs:
       id: docker_meta
       uses: crazy-max/ghaction-docker-meta@v1
       with:
-        images: ghcr.io/mithro/actions-includes,localhost:5000/mithro/actions-includes
+        images: ghcr.io/mithro/actions-includes/image,localhost:5000/mithro/actions-includes
 #        images: localhost:5000/mithro/actions-includes
         tag-sha: true
 
