@@ -25,7 +25,30 @@ on:
   push:
   pull_request:
 jobs:
+  docker-image-build:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: mithro/actions-includes@main
+      continue-on-error: false
+      with:
+        workflow: .github/workflows/ifexpands.yml
+    - id: wait
+      name: Wait for Docker Image build
+      uses: fountainhead/action-wait-for-check@v1.0.0
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        checkName: Push Docker image to GitHub Packages
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    - name: Docker Image Check
+      env:
+        STATUS: ${{ steps.wait.outputs.conclusion }}
+      run: |
+        if [[ "$STATUS" != "success" ]]; then
+          echo "::error {{ $STATUS }}"
+          exit 1
+        fi
   test-setting-default-false-to-true:
+    needs: docker-image-build
     strategy:
       matrix:
         use-first:

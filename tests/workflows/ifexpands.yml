@@ -19,7 +19,13 @@ on:
   pull_request:
 
 jobs:
+  docker-image-build:
+    runs-on: ubuntu-20.04
+    steps:
+    - includes: /wait-on-docker-image
+
   test-setting-default-false-to-true:
+    needs: docker-image-build
     strategy:
       matrix:
         use-first: [true, false]

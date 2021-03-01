@@ -81,6 +81,8 @@ def get_filepath(current, filepath):
     >>> get_filepath(remotefile_current, './.github/actions/blah')
     RemoteFilePath(user='user', repo='repo', ref='ref', path='.github/actions/blah')
 
+    >>> get_filepath(remotefile_current, '/blah')
+    RemoteFilePath(user='user', repo='repo', ref='ref', path='.github/actions/blah')
     """
 
     # Resolve '/$XXX' to './.github/actions/$XXX'
@@ -130,7 +132,7 @@ def get_filepath_data(filepath):
             url = 'https://raw.githubusercontent.com/{user}/{repo}/{ref}/{path}'.format(
                 **filepath._asdict())
 
-            printerr("Trying to download {}..".format(url), end=' ')
+            printerr("Trying to download {} ..".format(url), end=' ')
             try:
                 yaml_data = urllib.request.urlopen(url).read().decode('utf-8')
                 printerr('Success!')

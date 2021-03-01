@@ -25,7 +25,30 @@ on:
   push:
   pull_request:
 jobs:
+  docker-image-build:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: mithro/actions-includes@main
+      continue-on-error: false
+      with:
+        workflow: .github/workflows/remote.yml
+    - id: wait
+      name: Wait for Docker Image build
+      uses: fountainhead/action-wait-for-check@v1.0.0
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        checkName: Push Docker image to GitHub Packages
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    - name: Docker Image Check
+      env:
+        STATUS: ${{ steps.wait.outputs.conclusion }}
+      run: |
+        if [[ "$STATUS" != "success" ]]; then
+          echo "::error {{ $STATUS }}"
+          exit 1
+        fi
   test-setting-default-false-to-true:
+    needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
     - uses: mithro/actions-includes@main
@@ -46,6 +69,7 @@ jobs:
     - run: |
         echo "Post-step"
   test-setting-default-true-to-false:
+    needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
     - uses: mithro/actions-includes@main
@@ -60,6 +84,7 @@ jobs:
     - run: |
         echo "Post-step"
   test-basic:
+    needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
     - uses: mithro/actions-includes@main
@@ -73,6 +98,7 @@ jobs:
       run: |
         echo "${{ 'Hello World' }}"
   test-recursive-remote-with-local:
+    needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
     - uses: mithro/actions-includes@main
@@ -107,6 +133,7 @@ jobs:
       run: |
         echo "${{ 'Middle step' }}"
   test-recursive-remote-with-remote:
+    needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
     - uses: mithro/actions-includes@main

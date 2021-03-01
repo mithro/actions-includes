@@ -19,7 +19,13 @@ on:
   pull_request:
 
 jobs:
+  docker-image-build:
+    runs-on: ubuntu-20.04
+    steps:
+    - includes: /wait-on-docker-image
+
   test-setting-default-false-to-true:
+    needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
     - run: |
@@ -32,6 +38,7 @@ jobs:
         echo "Post-step"
 
   test-setting-default-true-to-false:
+    needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
     - run: |
@@ -44,6 +51,7 @@ jobs:
         echo "Post-step"
 
   test-basic:
+    needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
     - includes: ./tests/include
@@ -51,6 +59,7 @@ jobs:
           message: 'Hello World'
 
   test-recursive-local-with-local:
+    needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
     - includes: ./tests/recursive/local
@@ -66,6 +75,7 @@ jobs:
         use-last: false
 
   test-recursive-local-with-remote:
+    needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
     - includes: ./tests/recursive/remote
