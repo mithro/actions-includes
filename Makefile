@@ -48,6 +48,12 @@ build: clean
 
 .PHONY: build
 
+# Run Python test suite
+test:
+	${ACTIVATE} python -m actions_includes --test -v
+
+.PHONY: test
+
 # PYPI_TEST = --repository-url https://test.pypi.org/legacy/
 PYPI_TEST = --repository testpypi
 

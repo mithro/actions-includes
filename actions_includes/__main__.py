@@ -18,6 +18,12 @@
 
 
 import sys
-from . import main
 
-sys.exit(main(sys.argv))
+if sys.argv[1] == '--test':
+    sys.argv.pop(1)
+    import doctest
+    ai = sys.modules['actions_includes']
+    sys.exit(doctest.testmod(ai))
+else:
+    from . import main
+    sys.exit(main(sys.argv))

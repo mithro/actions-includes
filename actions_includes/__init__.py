@@ -65,10 +65,28 @@ def parse_remote_path(action_name):
 
 
 def get_filepath(current, filepath):
+
+    """
+    >>> localfile_current = LocalFilePath(pathlib.Path('/path'), 'abc.yaml')
+    >>> remotefile_current = RemoteFilePath('user', 'repo', 'ref', 'abc.yaml')
+
+    Local path on local current becomes a local path.
+    >>> get_filepath(localfile_current, './.github/actions/blah')
+    LocalFilePath(repo_root=PosixPath('/path'), path=PosixPath('.github/actions/blah'))
+
+    >>> get_filepath(localfile_current, '/blah')
+    LocalFilePath(repo_root=PosixPath('/path'), path=PosixPath('.github/actions/blah'))
+
+    Local path on current remote gets converted to a remote path.
+    >>> get_filepath(remotefile_current, './.github/actions/blah')
+    RemoteFilePath(user='user', repo='repo', ref='ref', path='.github/actions/blah')
+
+    """
+
     # Resolve '/$XXX' to './.github/actions/$XXX'
     if filepath.startswith('/'):
-        filepath = str(
-            pathlib.Path('.') / '.github' / 'actions' / filepath[1:])
+        filepath = '/'.join(
+            ['.', '.github', 'actions', filepath[1:]])
 
     if filepath.startswith('./'):
         assert '@' not in filepath, (
@@ -134,6 +152,7 @@ ACTION_YAML_NAMES = [
 
 def get_action_data(current_action, action_name):
     action_dirpath = get_filepath(current_action, action_name)
+    printerr("get_action_data:", current_action, action_name, action_dirpath)
 
     errors = {}
     for f in ACTION_YAML_NAMES:
@@ -146,10 +165,13 @@ def get_action_data(current_action, action_name):
             break
     else:
         raise IOError(
-            '\n'.join(['Did not find {}, errors:'.format(action_name)] + [
-                '  {}: {}'.format(k, str(v))
-                for k, v in sorted(errors.items())
-            ]))
+            '\n'.join([
+                    'Did not find {} (in {}), errors:'.format(
+                        action_name, current_action),
+                ] + [
+                    '  {}: {}'.format(k, str(v))
+                    for k, v in sorted(errors.items())
+                ]))
 
     printerr("Including:", action_filepath)
     yaml_data = yaml_load_and_expand(current_action, data)
@@ -174,7 +196,7 @@ def to_eval_literal(v):
     >>> to_eval_literal('Mona the Octocat')
     "'Mona the Octocat'"
     >>> to_eval_literal("It's open source")
-    "It''s open source"
+    "'It''s open source'"
     """
     if isinstance(v, Value):
         return v
@@ -467,7 +489,3 @@ def main(args):
 
             os.unlink(tfile)
             tfile = None
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv))
