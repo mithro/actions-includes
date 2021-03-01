@@ -474,13 +474,16 @@ def main(args):
 
             tfile = outpath
             to_path = outpath
+            to_abspath = outpath.resolve()
         else:
             printerr("Expanding", from_filename, "into", to_filename)
-            to_path = pathlib.Path(to_filename).resolve().relative_to(repo_root)
+            to_abspath = pathlib.Path(to_filename).resolve()
+            to_path = to_abspath.relative_to(repo_root)
 
         current_action = LocalFilePath(repo_root, str(from_path))
         out_data = expand_workflow(current_action, to_path)
-        with open(to_path, 'w') as f:
+
+        with open(to_abspath, 'w') as f:
             f.write(out_data)
 
         return 0
