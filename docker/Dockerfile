@@ -18,14 +18,11 @@
 
 FROM python:alpine
 
-RUN \
-	python --version \
-	&& pip --version
-
 # Install the actions-includes tool
-RUN \
-	--mount=type=bind,src=./,target=/tmp/action-includes \
-	pip install /tmp/action-includes/*.tar.gz --progress-bar off \
+RUN --mount=type=bind,src=./,target=/tmp/action-includes ls /tmp/action-includes \
+	&& python --version \
+	&& pip --version \
+	&& pip install /tmp/action-includes/*.tar.gz --progress-bar off \
 	&& rm -rf ~/.cache/pip
 
 ENTRYPOINT ["python3", "-m", "actions_includes.check"]

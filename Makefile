@@ -126,7 +126,7 @@ image: build
 #  -v "/home/runner/work/actions-includes/actions-includes":"/github/workspace"
 #  ghcr.io/mithro/actions-includes
 #  "action.yml"
-
+export DOCKER_BUILDKIT=1
 image-test: image
 	GITHUB_REPOSITORY=mithro/actions-includes \
 	GITHUB_SHA=$$(git rev-parse HEAD) \

@@ -967,6 +967,9 @@ def expand_workflow(current_workflow, to_path):
         'with': {
             'workflow': str(to_path),
         },
+        'env': {
+            'DOCKER_BUILDKIT': 1,
+        },
     })
 
     for j in data['jobs'].values():
