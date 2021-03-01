@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:experimental
+
 # Copyright 2021 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,22 +16,17 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-FROM python:slim-buster
+FROM python:alpine
 
 RUN \
 	python --version \
 	&& pip --version
 
 # Install the actions-includes tool
-COPY ./*.tar.gz /
 RUN \
-	ls -l /*.tar.gz \
-	&& pip install /*.tar.gz --progress-bar off \
-	&& rm -rf ~/.cache/pip \
-	&& rm /*.tar.gz \
-	&& mkdir -p /github/workspace
-
-WORKDIR /github/workspace
+	--mount=type=bind,src=./,target=/tmp/action-includes \
+	pip install /tmp/action-includes/*.tar.gz --progress-bar off \
+	&& rm -rf ~/.cache/pip
 
 ENTRYPOINT ["python3", "-m", "actions_includes.check"]
 CMD ["--help"]
