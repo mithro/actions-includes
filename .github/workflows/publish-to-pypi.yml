@@ -6,18 +6,17 @@ on:
       - main
 
 jobs:
-  build-n-publish:
 
+  build-n-publish:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ['3.8', '3.9']
-        os: [ubuntu-latest]
       fail-fast: false
-
     name: ${{ matrix.python-version }}
-    runs-on: ${{ matrix.os }}
 
     steps:
+
     - uses: actions/checkout@v2
       with:
         # Always clone the full depth so git-describe works.
@@ -35,27 +34,22 @@ jobs:
         pip install -U setuptools wheel twine
 
     - name: Install package dependencies
-      run: |
-        python setup.py install
+      run: python setup.py install
 
     - name: Build distribution 📦
-      run: |
-        python setup.py sdist bdist_wheel
+      run: python setup.py sdist bdist_wheel
 
     - name: Check distribution 📦
-      run: |
-        twine check dist/*
+      run: twine check dist/*
 
     - name: Publish to Test PyPI
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
-      run: |
-        twine upload --skip-existing --repository testpypi dist/*
+      run: twine upload --skip-existing --repository testpypi dist/*
 
     - name: Publish to PyPI
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-      run: |
-        twine upload --skip-existing dist/*
+      run: twine upload --skip-existing dist/*
