@@ -141,6 +141,18 @@ image-test: image
 
 .PHONY: image
 
+
+# Update the GitHub action workflows
+WORKFLOWS = $(addprefix .github/workflows/,$(notdir $(wildcard ./tests/workflows/*.yml)))
+
+.github/workflows/%.yml: tests/workflows/%.yml actions_includes/__init__.py
+	${ACTIVATE} python -m actions_includes $< $@
+
+update-workflows: $(WORKFLOWS)
+	@true
+
+.PHONY: update-workflows
+
 # Redirect anything else to setup.py
 %:
 	${ACTIVATE} python setup.py $@
