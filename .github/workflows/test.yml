@@ -20,10 +20,14 @@ on:
 
 jobs:
   test:
+    name: Basic Test
+
     runs-on: ubuntu-latest
+
     steps:
     - uses: actions/checkout@v2
-    - continue-on-error: false
-      uses: ./
+
+    - uses: ./
+      continue-on-error: true
       with:
         workflow: action.yml
