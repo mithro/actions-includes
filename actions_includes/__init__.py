@@ -392,7 +392,7 @@ yaml.add_representer(On, On.presenter)
 def expand_workflow(current_workflow, to_path):
     src_path = os.path.relpath('/'+str(current_workflow.path), start='/'+str(os.path.dirname(to_path)))
     if isinstance(current_workflow, LocalFilePath):
-        dst_path = os.path.relpath(to_path, start=current_workflow.repo_root)
+        dst_path = current_workflow.repo_root / to_path
     else:
         dst_path = to_path
 
@@ -432,7 +432,7 @@ def expand_workflow(current_workflow, to_path):
             'uses': INCLUDE_ACTION_NAME,
             'continue-on-error': False,
             'with': {
-                'workflow': str(dst_path),
+                'workflow': str(to_path),
             },
         })
 
