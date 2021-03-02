@@ -428,13 +428,15 @@ def expand_workflow(current_workflow, to_path):
         steps = j['steps']
         assert isinstance(steps, list), pprint.pformat(j)
 
-        steps.insert(0, {
-            'uses': INCLUDE_ACTION_NAME,
-            'continue-on-error': False,
-            'with': {
-                'workflow': str(to_path),
-            },
-        })
+        # FIXME: This check should run on all platforms.
+        if j.get('runs-on', '').startswith('ubuntu'):
+            steps.insert(0, {
+                'uses': INCLUDE_ACTION_NAME,
+                'continue-on-error': False,
+                'with': {
+                    'workflow': str(to_path),
+                },
+            })
 
     printdbg('')
     printdbg('Final yaml data:')
