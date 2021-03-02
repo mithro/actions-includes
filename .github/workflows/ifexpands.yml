@@ -19,7 +19,7 @@
 # !! WARNING !!
 #
 # It is generated from: ../../tests/workflows/ifexpands.yml
-# using the script from https://github.com/mithro/actions-includes
+# using the script from https://github.com/mithro/actions-includes@main
 
 on:
   push:
@@ -29,6 +29,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - uses: mithro/actions-includes@main
+      if: runner.os == 'Linux'
       continue-on-error: false
       with:
         workflow: .github/workflows/ifexpands.yml
@@ -60,6 +61,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - uses: mithro/actions-includes@main
+      if: runner.os == 'Linux'
       continue-on-error: false
       with:
         workflow: .github/workflows/ifexpands.yml
