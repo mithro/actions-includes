@@ -442,7 +442,7 @@ def expand_workflow(current_workflow, to_path):
     printdbg(pprint.pformat(data))
     printdbg('-'*75)
 
-    output.append(yaml.dump(data, allow_unicode=True, sort_keys=False))
+    output.append(yaml.dump(data, allow_unicode=True, sort_keys=False, width=1000))
 
     return '\n'.join(output)
 
