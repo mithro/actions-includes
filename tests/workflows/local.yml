@@ -89,3 +89,9 @@ jobs:
       with:
         use-first: false
         use-last: false
+
+  test-includes-script:
+    needs: docker-image-build
+    runs-on: ubuntu-20.04
+    steps:
+    - includes: ./tests/include-script

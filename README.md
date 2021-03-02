@@ -11,6 +11,7 @@ the tool like follows;
 python -m actions_includes ./.github/workflows-src/workflow-a.yml ./.github/workflows/workflow-a.yml
 ```
 
+## `includes:` step
 
 ```yaml
 
@@ -49,4 +50,43 @@ As you frequently want to include local actions, `actions-includes` extends the
 
 This is how composite actions should have worked.
 
+## `includes-script:` step
 
+File: `script.py`
+> ```python
+> print('Hello world')
+> ```
+
+File: `workflow.yml`
+> ```yaml
+> steps:
+> - name: Other step
+>   run: |
+>     command
+>
+> - name: Hello
+>   includes-script: script.py
+>
+> - name: Other step
+>   run: |
+>     command
+> ```
+
+`python -m actions_includes.py workflow.in.yml workflow.out.yml`
+
+File: `oworkflow.out.yml`
+> ```yaml
+> steps:
+> - name: Other step
+>   run: |
+>     command
+> 
+> - name: Hello
+>   shell: python
+>   run: |
+>     print('Hello world')
+> 
+> - name: Other step
+>   run: |
+>     command
+> ```

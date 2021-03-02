@@ -244,92 +244,139 @@ class Value(str):
     pass
 
 
+def step_type(v):
+    if 'run' in v:
+        return 'run'
+    elif 'uses' in v:
+        return 'uses'
+    elif 'includes' in v:
+        return 'includes'
+    elif 'includes-script' in v:
+        return 'includes-script'
+    else:
+        raise ValueError('Unknown step type:\n' + pprint.pformat(v))
+
+
+def expand_step_includes(current_action, out_list, v):
+    assert step_type(v) == 'includes', (current_action, out_list, v)
+
+    condition = None
+    if 'if' in v:
+        vs = v['if'].strip()
+        if vs.startswith('${{'):
+            assert vs.endswith('}}'), vs
+            condition = Value(vs[3:-2].strip())
+        else:
+            condition = Value(vs)
+
+    include_yamldata = get_action_data(current_action, v['includes'])
+
+    if 'inputs' not in include_yamldata:
+        include_yamldata['inputs'] = {}
+
+    with_data = v.get('with', {})
+
+    inputs = {}
+    for in_name, in_info in include_yamldata['inputs'].items():
+        if 'default' in in_info:
+            inputs[in_name] = in_info['default']
+        if in_name in with_data:
+            inputs[in_name] = with_data[in_name]
+
+        if in_info.get('required', False):
+            assert in_name in inputs, (in_name, in_info, with_data)
+
+        v = inputs[in_name]
+        if isinstance(v, str):
+            vs = v.strip()
+            if vs.startswith('${{'):
+                assert vs.endswith('}}'), vs
+                inputs[in_name] = Value(vs[3:-2].strip())
+
+    assert 'runs' in include_yamldata, include_yamldata
+    assert 'steps' in include_yamldata['runs'], include_yamldata['steps']
+
+    steps = include_yamldata['runs']['steps']
+    while len(steps) > 0:
+        step = steps.pop(0)
+        if 'if' in step:
+            vs = step['if']
+            assert isinstance(vs, str), vs
+            vs = vs.strip()
+            if not vs.startswith('${{'):
+                step['if'] = '${{ '+step['if']+' }}'
+
+        printdbg('Inputs:', inputs)
+        printdbg('Before:', step)
+        replace_inputs(step, inputs)
+        printdbg('After1:', step)
+        if 'if' in step:
+            vs = step['if']
+            assert isinstance(vs, str), vs
+            vs = vs.strip()
+            assert vs.startswith('${{'), vs
+            assert vs.endswith('}}'), vs
+            step['if'] = vs[3:-2].strip()
+        printdbg('After2:', step)
+
+        if 'if' in step:
+            if step['if'] == 'false':
+                continue
+            if step['if'] == 'true':
+                del step['if']
+        printdbg('After3:', step)
+
+        if condition is not None:
+            if 'if' in step:
+                step['if'] = '{} && ({})'.format(to_eval_literal(condition), step['if'])
+            else:
+                step['if'] = to_eval_literal(condition)
+
+        out_list.append(step)
+
+
+def expand_step_includes_script(current_action, out_list, v):
+    assert step_type(v) == 'includes-script', (current_action, out_list, v)
+
+    script = v.pop('includes-script')
+    script_file = str((pathlib.Path(current_action.path).parent / script).resolve())
+
+    script_filepath = get_filepath(current_action, './'+script_file)
+    script_data = get_filepath_data(script_filepath)
+
+    v['run'] = script_data
+    if script.endswith('.py'):
+        v['shell'] = 'python'
+    elif script.endswith('.sh'):
+        if 'shell' not in v:
+            v['shell'] = 'bash'
+
+    expand_step_run(current_action, out_list, v)
+
+
+def expand_step_uses(current_action, out_list, v):
+    assert step_type(v) == 'uses', (current_action, out_list, v)
+    # Support the `/{name}` format on `uses` values.
+    if v['uses'].startswith('/'):
+        v['uses'] = './.github/actions' + v['uses']
+
+    out_list.append(v)
+
+
+def expand_step_run(current_action, out_list, v):
+    assert step_type(v) == 'run', (current_action, out_list, v)
+    out_list.append(v)
+
+
 def expand_steps_list(current_action, yaml_list):
     out_list = []
     for i, v in list(enumerate(yaml_list)):
-        if 'includes' not in v:
-            # Support the `/{name}` format on `uses` values.
-            uses = v.get('uses', 'Run cmd')
-            if uses.startswith('/'):
-                v['uses'] = './.github/actions' + uses
-
-            out_list.append(v)
-            continue
-
-        condition = None
-        if 'if' in v:
-            vs = v['if'].strip()
-            if vs.startswith('${{'):
-                assert vs.endswith('}}'), vs
-                condition = Value(vs[3:-2].strip())
-            else:
-                condition = Value(vs)
-
-        include_yamldata = get_action_data(current_action, v['includes'])
-
-        if 'inputs' not in include_yamldata:
-            include_yamldata['inputs'] = {}
-
-        with_data = v.get('with', {})
-
-        inputs = {}
-        for in_name, in_info in include_yamldata['inputs'].items():
-            if 'default' in in_info:
-                inputs[in_name] = in_info['default']
-            if in_name in with_data:
-                inputs[in_name] = with_data[in_name]
-
-            if in_info.get('required', False):
-                assert in_name in inputs, (in_name, in_info, with_data)
-
-            v = inputs[in_name]
-            if isinstance(v, str):
-                vs = v.strip()
-                if vs.startswith('${{'):
-                    assert vs.endswith('}}'), vs
-                    inputs[in_name] = Value(vs[3:-2].strip())
-
-        assert 'runs' in include_yamldata, include_yamldata
-        assert 'steps' in include_yamldata['runs'], include_yamldata['steps']
-
-        steps = include_yamldata['runs']['steps']
-        while len(steps) > 0:
-            step = steps.pop(0)
-            if 'if' in step:
-                vs = step['if']
-                assert isinstance(vs, str), vs
-                vs = vs.strip()
-                if not vs.startswith('${{'):
-                    step['if'] = '${{ '+step['if']+' }}'
-
-            printdbg('Inputs:', inputs)
-            printdbg('Before:', step)
-            replace_inputs(step, inputs)
-            printdbg('After1:', step)
-            if 'if' in step:
-                vs = step['if']
-                assert isinstance(vs, str), vs
-                vs = vs.strip()
-                assert vs.startswith('${{'), vs
-                assert vs.endswith('}}'), vs
-                step['if'] = vs[3:-2].strip()
-            printdbg('After2:', step)
-
-            if 'if' in step:
-                if step['if'] == 'false':
-                    continue
-                if step['if'] == 'true':
-                    del step['if']
-            printdbg('After3:', step)
-
-            if condition is not None:
-                if 'if' in step:
-                    step['if'] = '{} && ({})'.format(to_eval_literal(condition), step['if'])
-                else:
-                    step['if'] = to_eval_literal(condition)
-
-            out_list.append(step)
-
+        {
+                'run': expand_step_run,
+                'uses': expand_step_uses,
+                'includes': expand_step_includes,
+                'includes-script': expand_step_includes_script,
+        }[step_type(v)](current_action, out_list, v)
     return out_list
 
 
