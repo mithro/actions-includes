@@ -413,8 +413,8 @@ def expand_workflow(current_workflow, to_path):
 # !! WARNING !!
 #
 # {}
-# using the script from https://github.com/mithro/actions-includes
-""".format(MARKER+str(src_path)))
+# using the script from https://github.com/{}
+""".format(MARKER+str(src_path), INCLUDE_ACTION_NAME))
 
     data = yaml_load_and_expand(current_workflow, '\n'.join(workflow_data))
     new_data = {}
