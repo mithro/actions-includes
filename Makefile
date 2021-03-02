@@ -146,7 +146,11 @@ image-test: image
 WORKFLOWS = $(addprefix .github/workflows/,$(notdir $(wildcard ./tests/workflows/*.yml)))
 
 .github/workflows/%.yml: tests/workflows/%.yml actions_includes/__init__.py
+	@echo
+	@echo "Updating $@"
+	@echo "--------------------------------------"
 	${ACTIVATE} cd tests && python -m actions_includes ../$< ../$@
+	@echo "--------------------------------------"
 
 update-workflows: $(WORKFLOWS)
 	@true
