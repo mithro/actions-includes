@@ -17,33 +17,14 @@
 name: includes-include
 description: "Basic action to be included in other tests."
 
-inputs:
-  use-first:
-    description: 'Use the first step'
-    required: true
-    default: true
-  use-last:
-    description: 'Use the last step'
-    required: true
-    default: false
-  message:
-    description: 'Message to use in the middle step'
-    required: true
-
 runs:
   using: "includes"
 
   steps:
   - name: First step
-    if: inputs.use-first
     run: |
         echo "First step!"
 
-  - name: Middle step
-    run: |
-        echo "${{ inputs.message }}"
-
   - name: Last step
-    if: inputs.use-last
     run: |
         echo "Last step!"
