@@ -33,20 +33,8 @@ runs:
   steps:
   - includes: ./include
     if: inputs.use-first
-    with:
-        message: 'First step'
-        use-first: false
-        use-last: false
 
-  - includes: ./tests/include
-    with:
-        message: 'Middle step'
-        use-first: ${{ inputs.use-first }}
-        use-last: ${{ inputs.use-last }}
+  - includes: ./include
 
   - includes: ./include
     if: inputs.use-last
-    with:
-        message: 'Last step'
-        use-first: false
-        use-last: false
