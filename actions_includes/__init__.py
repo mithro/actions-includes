@@ -348,9 +348,14 @@ def expand_step_includes_script(current_action, out_list, v):
 
     v['run'] = script_data
     if script.endswith('.py'):
+        # Standard shell, no `{0}` needed.
         v['shell'] = 'python'
+    elif script.endswith('.rb'):
+        # Non-standard shell, `{0}` needed.
+        v['shell'] = 'ruby {0}'
     elif script.endswith('.sh'):
         if 'shell' not in v:
+            # Standard shell, no `{0}` needed.
             v['shell'] = 'bash'
 
     expand_step_run(current_action, out_list, v)
