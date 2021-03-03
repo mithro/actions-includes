@@ -183,10 +183,54 @@ jobs:
       with:
         workflow: .github/workflows/local.yml
     - name: Included Python Script
-      run: !!python/object/apply:builtins.OSError
-      - /ssd/github/mithro/actions-includes/tests/tests/workflows/script.py does not exist
+      run: |
+        print('Hello from Python!')
       shell: python
     - name: Included Shell script
-      run: !!python/object/apply:builtins.OSError
-      - /ssd/github/mithro/actions-includes/tests/tests/workflows/script.sh does not exist
+      run: |
+        echo "Hello from bash"
       shell: bash
+  test-recursive-remote-other:
+    needs: docker-image-build
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: mithro/actions-includes@main
+      if: runner.os == 'Linux'
+      continue-on-error: false
+      with:
+        workflow: .github/workflows/local.yml
+    - name: First step
+      run: |
+        echo "First step!"
+    - name: Last step
+      run: |
+        echo "Last step!"
+    - name: Included Python Script
+      run: |
+        print('Hello from Python!')
+      shell: python
+    - name: Included Shell script
+      run: |
+        echo "Hello from bash"
+      shell: bash
+    - name: First step
+      run: |
+        echo "First step!"
+    - name: Last step
+      run: |
+        echo "Last step!"
+    - name: First step
+      run: |
+        echo "First step!"
+    - name: Last step
+      run: |
+        echo "Last step!"
+    - name: Middle step
+      run: |
+        echo "${{ 'First step' }}"
+    - name: First step
+      run: |
+        echo "First step!"
+    - name: Middle step
+      run: |
+        echo "${{ 'Middle step' }}"

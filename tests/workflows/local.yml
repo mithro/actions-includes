@@ -95,3 +95,9 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - includes: ./tests/include-script
+
+  test-recursive-remote-other:
+    needs: docker-image-build
+    runs-on: ubuntu-20.04
+    steps:
+    - includes: ./tests/recursive/remote-other

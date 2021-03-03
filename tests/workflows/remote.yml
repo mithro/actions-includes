@@ -90,8 +90,23 @@ jobs:
         use-first: false
         use-last: false
 
+  test-other-location:
+    needs: docker-image-build
+    runs-on: ubuntu-20.04
+    steps:
+    - includes: mithro/actions-includes/include@other
+      with:
+          message: 'Hello World'
+          use-last: true
+
   test-includes-script:
     needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
     - includes: mithro/actions-includes/tests/include-script@main
+
+  test-recursive-remote-other:
+    needs: docker-image-build
+    runs-on: ubuntu-20.04
+    steps:
+    - includes: mithro/actions-includes/tests/recursive/remote-other@main

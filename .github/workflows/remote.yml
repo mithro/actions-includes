@@ -173,3 +173,79 @@ jobs:
     - name: Middle step
       run: |
         echo "${{ 'Middle step' }}"
+  test-other-location:
+    needs: docker-image-build
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: mithro/actions-includes@main
+      if: runner.os == 'Linux'
+      continue-on-error: false
+      with:
+        workflow: .github/workflows/remote.yml
+    - name: First step
+      run: |
+        echo "First step!"
+    - name: Last step
+      run: |
+        echo "Last step!"
+  test-includes-script:
+    needs: docker-image-build
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: mithro/actions-includes@main
+      if: runner.os == 'Linux'
+      continue-on-error: false
+      with:
+        workflow: .github/workflows/remote.yml
+    - name: Included Python Script
+      run: |
+        print('Hello from Python!')
+      shell: python
+    - name: Included Shell script
+      run: |
+        echo "Hello from bash"
+      shell: bash
+  test-recursive-remote-other:
+    needs: docker-image-build
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: mithro/actions-includes@main
+      if: runner.os == 'Linux'
+      continue-on-error: false
+      with:
+        workflow: .github/workflows/remote.yml
+    - name: First step
+      run: |
+        echo "First step!"
+    - name: Last step
+      run: |
+        echo "Last step!"
+    - name: Included Python Script
+      run: |
+        print('Hello from Python!')
+      shell: python
+    - name: Included Shell script
+      run: |
+        echo "Hello from bash"
+      shell: bash
+    - name: First step
+      run: |
+        echo "First step!"
+    - name: Last step
+      run: |
+        echo "Last step!"
+    - name: First step
+      run: |
+        echo "First step!"
+    - name: Last step
+      run: |
+        echo "Last step!"
+    - name: Middle step
+      run: |
+        echo "${{ 'First step' }}"
+    - name: First step
+      run: |
+        echo "First step!"
+    - name: Middle step
+      run: |
+        echo "${{ 'Middle step' }}"

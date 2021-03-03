@@ -17,6 +17,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+import hashlib
 import os
 import pathlib
 import pprint
@@ -176,7 +177,7 @@ def get_action_data(current_action, action_name):
                 ]))
 
     printerr("Including:", action_filepath)
-    yaml_data = yaml_load_and_expand(current_action, data)
+    yaml_data = yaml_load_and_expand(action_filepath, data)
     assert 'runs' in yaml_data, pprint.pformat(yaml_data)
     assert yaml_data['runs'].get(
         'using', None) == 'includes', pprint.pformat(yaml_data)
@@ -339,7 +340,8 @@ def expand_step_includes_script(current_action, out_list, v):
     assert step_type(v) == 'includes-script', (current_action, out_list, v)
 
     script = v.pop('includes-script')
-    script_file = str((pathlib.Path(current_action.path).parent / script).resolve())
+    script_file = str((pathlib.Path('/'+current_action.path).parent / script).resolve())[1:]
+    printerr(f"Including script: {script} (relative to {current_action}) found at {script_file}")
 
     script_filepath = get_filepath(current_action, './'+script_file)
     script_data = get_filepath_data(script_filepath)
@@ -405,6 +407,8 @@ def expand(current_action, yaml_item):
 
 
 def yaml_load_and_expand(current_action, yaml_data):
+    md5sum = hashlib.md5(yaml_data.encode('utf-8')).hexdigest()
+    printerr(f'Loading yaml file {current_action} with contents md5 of {md5sum}')
     return expand(current_action, yaml.load(
         yaml_data, Loader=yaml.FullLoader))
 
