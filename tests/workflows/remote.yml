@@ -110,3 +110,19 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - includes: mithro/actions-includes/tests/recursive/remote-other@main
+
+  test-include-some1:
+    needs: docker-image-build
+    runs-on: ubuntu-20.04
+    steps:
+    - includes: mithro/actions-includes/tests/include-some@main
+      with:
+        message: Hello everyone!
+
+  test-include-some2:
+    needs: docker-image-build
+    runs-on: ubuntu-20.04
+    steps:
+    - includes: mithro/actions-includes/tests/include-some@main
+      with:
+        message: Everyone!
