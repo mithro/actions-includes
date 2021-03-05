@@ -17,10 +17,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+import copy
 import hashlib
 import os
 import pathlib
 import pprint
+import re
 import subprocess
 import sys
 import tempfile
@@ -29,6 +31,7 @@ import urllib.request
 import yaml
 
 from collections import namedtuple
+from . import expressions as exp
 
 
 def printerr(*args, **kw):
@@ -184,65 +187,38 @@ def get_action_data(current_action, action_name):
     return yaml_data
 
 
-def to_eval_literal(v):
-    """
-    >>> to_eval_literal(None)
-    'null'
-    >>> to_eval_literal(True)
-    'true'
-    >>> to_eval_literal(False)
-    'false'
-    >>> to_eval_literal(711)
-    '711'
-    >>> to_eval_literal(2.0)
-    '2.0'
-    >>> to_eval_literal('Mona the Octocat')
-    "'Mona the Octocat'"
-    >>> to_eval_literal("It's open source")
-    "'It''s open source'"
-    """
-    if isinstance(v, Value):
-        return v
-    # myNull: ${{ null }}
-    elif v is None:
-        return 'null'
-    # myBoolean: ${{ false }}
-    elif v is True:
-        return 'true'
-    elif v is False:
-        return 'false'
-    # myIntegerNumber: ${{ 711 }}
-    # myFloatNumber: ${{ -9.2 }}
-    # myExponentialNumber: ${{ -2.99-e2 }}
-    elif isinstance(v, (int, float)):
-        return str(v)
-    # myString: ${{ 'Mona the Octocat' }}
-    # myEscapedString: ${{ 'It''s open source!' }}
-    elif isinstance(v, str):
-        if "'" in v:
-            v = v.replace("'", "''")
-        return "'{}'".format(v)
-    # myHexNumber: ${{ 0xff }}
+RE_EXP = re.compile('\\${{(.*?)}}', re.DOTALL)
 
 
-def replace_inputs(yaml_item, inputs):
+def simplify_expressions(yaml_item, context):
+    """
+
+    >>> simplify_expressions('${{ hello }}', {'hello': 'world'})
+    'world'
+    >>> simplify_expressions(exp.Value('hello'), {'hello': 'world'})
+    'world'
+
+    """
     if isinstance(yaml_item, dict):
         for k in list(yaml_item.keys()):
-            yaml_item[k] = replace_inputs(yaml_item[k], inputs)
+            yaml_item[k] = simplify_expressions(yaml_item[k], context)
     elif isinstance(yaml_item, list):
         for i in range(0, len(yaml_item)):
-            yaml_item[i] = replace_inputs(yaml_item[i], inputs)
-    elif yaml_item in inputs:
-        return inputs[yaml_item]
+            yaml_item[i] = simplify_expressions(yaml_item[i], context)
+    elif isinstance(yaml_item, exp.Expression):
+        yaml_item = exp.simplify(yaml_item, context)
     elif isinstance(yaml_item, str):
-        if 'inputs.' in yaml_item:
-            for f, t in inputs.items():
-                yaml_item = yaml_item.replace('inputs.' + f, to_eval_literal(t))
+        def replace_exp(m):
+            e = m.group(1)
+            v = exp.simplify(e, context)
+
+            if isinstance(v, exp.Expression):
+                return '${{ %s }}' % (v,)
+            else:
+                return str(v)
+
+        yaml_item = RE_EXP.sub(replace_exp, yaml_item)
     return yaml_item
-
-
-class Value(str):
-    pass
 
 
 def step_type(v):
@@ -258,41 +234,52 @@ def step_type(v):
         raise ValueError('Unknown step type:\n' + pprint.pformat(v))
 
 
-def expand_step_includes(current_action, out_list, v):
-    assert step_type(v) == 'includes', (current_action, out_list, v)
+def popout_if(d):
+    if 'if' not in d:
+        return True
 
-    condition = None
-    if 'if' in v:
-        vs = v['if'].strip()
-        if vs.startswith('${{'):
-            assert vs.endswith('}}'), vs
-            condition = Value(vs[3:-2].strip())
-        else:
-            condition = Value(vs)
+    v = d['if']
+    if isinstance(v, exp.Expression):
+        return v
+    if not isinstance(v, str):
+        return v
+    if not v.startswith('${{'):
+        v = "${{ %s }}" % v
+    return exp.parse(v)
 
-    include_yamldata = get_action_data(current_action, v['includes'])
 
+def expand_step_includes(current_action, out_list, include_step):
+    assert step_type(include_step) == 'includes', (current_action, out_list, include_step)
+
+    include_if = popout_if(include_step)
+
+    include_yamldata = get_action_data(current_action, include_step['includes'])
+
+    # Calculate the inputs dictionary
     if 'inputs' not in include_yamldata:
         include_yamldata['inputs'] = {}
 
-    with_data = v.get('with', {})
+    with_data = include_step.get('with', {})
 
     inputs = {}
     for in_name, in_info in include_yamldata['inputs'].items():
+        v = None
         if 'default' in in_info:
-            inputs[in_name] = in_info['default']
+            v = in_info['default']
         if in_name in with_data:
-            inputs[in_name] = with_data[in_name]
+            v = with_data[in_name]
 
         if in_info.get('required', False):
-            assert in_name in inputs, (in_name, in_info, with_data)
+            assert v is not None, (in_name, in_info, with_data)
 
-        v = inputs[in_name]
-        if isinstance(v, str):
-            vs = v.strip()
-            if vs.startswith('${{'):
-                assert vs.endswith('}}'), vs
-                inputs[in_name] = Value(vs[3:-2].strip())
+        inputs[in_name] = exp.parse(v)
+
+    context = copy.deepcopy(include_yamldata)
+    context['inputs'] = inputs
+    printdbg('\nInclude Step:\n', pprint.pformat(include_step))
+    printdbg('Inputs:\n', pprint.pformat(inputs))
+    printdbg('Include If:', repr(include_if))
+    printdbg('\n')
 
     assert 'runs' in include_yamldata, include_yamldata
     assert 'steps' in include_yamldata['runs'], include_yamldata['steps']
@@ -300,38 +287,26 @@ def expand_step_includes(current_action, out_list, v):
     steps = include_yamldata['runs']['steps']
     while len(steps) > 0:
         step = steps.pop(0)
-        if 'if' in step:
-            vs = step['if']
-            assert isinstance(vs, str), vs
-            vs = vs.strip()
-            if not vs.startswith('${{'):
-                step['if'] = '${{ '+step['if']+' }}'
+        step_if = popout_if(step)
+        printdbg('\nStep:', include_step['includes']+'#'+str(len(out_list)))
+        printdbg('Inputs:\n', pprint.pformat(inputs))
+        printdbg('Before:\n', pprint.pformat(step))
+        printdbg('Before Step If:', repr(step_if))
+        simplify_expressions(step, context)
+        printdbg('---')
+        current_if = exp.AndF(include_if, exp.simplify(step_if, context))
+        printdbg('After:\n', pprint.pformat(step))
+        printdbg('After If:', repr(current_if))
+        printdbg('\n', end='')
 
-        printdbg('Inputs:', inputs)
-        printdbg('Before:', step)
-        replace_inputs(step, inputs)
-        printdbg('After1:', step)
-        if 'if' in step:
-            vs = step['if']
-            assert isinstance(vs, str), vs
-            vs = vs.strip()
-            assert vs.startswith('${{'), vs
-            assert vs.endswith('}}'), vs
-            step['if'] = vs[3:-2].strip()
-        printdbg('After2:', step)
-
-        if 'if' in step:
-            if step['if'] == 'false':
-                continue
-            if step['if'] == 'true':
-                del step['if']
-        printdbg('After3:', step)
-
-        if condition is not None:
+        if isinstance(current_if, exp.Expression):
+            step['if'] = str(current_if)
+        elif current_if in (False, None, ''):
+            continue
+        else:
+            assert current_if is True, (current_if, repr(current_if))
             if 'if' in step:
-                step['if'] = '{} && ({})'.format(to_eval_literal(condition), step['if'])
-            else:
-                step['if'] = to_eval_literal(condition)
+                del step['if']
 
         out_list.append(step)
 
@@ -440,6 +415,11 @@ class On:
         return dumper.represent_scalar('tag:yaml.org,2002:bool', 'on')
 
 
+def exp_presenter(dumper, data):
+    return str_presenter(dumper, str(data))
+
+
+yaml.add_representer(exp.Expression, exp_presenter)
 yaml.add_representer(str, str_presenter)
 yaml.add_representer(None.__class__, none_presenter)
 yaml.add_representer(On, On.presenter)

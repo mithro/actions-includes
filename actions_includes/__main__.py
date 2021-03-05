@@ -22,8 +22,9 @@ import sys
 if sys.argv[1] == '--test':
     sys.argv.pop(1)
     import doctest
-    ai = sys.modules['actions_includes']
-    sys.exit(doctest.testmod(ai))
+    e = doctest.testmod(sys.modules['actions_includes'])
+    e += doctest.testmod(sys.modules['actions_includes.expressions'])
+    sys.exit(e)
 else:
     from . import main
     sys.exit(main(sys.argv))
