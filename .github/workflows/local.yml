@@ -64,7 +64,7 @@ jobs:
         echo "First step!"
     - name: Middle step
       run: |
-        echo "${{ 'Hello World' }}"
+        echo "Hello World"
     - name: Last step
       run: |
         echo "Last step!"
@@ -83,7 +83,7 @@ jobs:
         echo "Pre-step"
     - name: Middle step
       run: |
-        echo "${{ 'Hello World' }}"
+        echo "Hello World"
     - run: |
         echo "Post-step"
   test-basic:
@@ -100,7 +100,7 @@ jobs:
         echo "First step!"
     - name: Middle step
       run: |
-        echo "${{ 'Hello World' }}"
+        echo "Hello World"
   test-recursive-local-with-local:
     needs: docker-image-build
     runs-on: ubuntu-20.04
@@ -112,31 +112,31 @@ jobs:
         workflow: .github/workflows/local.yml
     - name: Middle step
       run: |
-        echo "${{ 'First step' }}"
+        echo "First step"
     - name: First step
       run: |
         echo "First step!"
     - name: Middle step
       run: |
-        echo "${{ 'Middle step' }}"
+        echo "Middle step"
     - name: Last step
       run: |
         echo "Last step!"
     - name: Middle step
       run: |
-        echo "${{ 'Last step' }}"
+        echo "Last step"
     - name: Middle step
       run: |
-        echo "${{ 'First step' }}"
+        echo "First step"
     - name: First step
       run: |
         echo "First step!"
     - name: Middle step
       run: |
-        echo "${{ 'Middle step' }}"
+        echo "Middle step"
     - name: Middle step
       run: |
-        echo "${{ 'Middle step' }}"
+        echo "Middle step"
   test-recursive-local-with-remote:
     needs: docker-image-build
     runs-on: ubuntu-20.04
@@ -148,31 +148,31 @@ jobs:
         workflow: .github/workflows/local.yml
     - name: Middle step
       run: |
-        echo "${{ 'First step' }}"
+        echo "First step"
     - name: First step
       run: |
         echo "First step!"
     - name: Middle step
       run: |
-        echo "${{ 'Middle step' }}"
+        echo "Middle step"
     - name: Last step
       run: |
         echo "Last step!"
     - name: Middle step
       run: |
-        echo "${{ 'Last step' }}"
+        echo "Last step"
     - name: Middle step
       run: |
-        echo "${{ 'First step' }}"
+        echo "First step"
     - name: First step
       run: |
         echo "First step!"
     - name: Middle step
       run: |
-        echo "${{ 'Middle step' }}"
+        echo "Middle step"
     - name: Middle step
       run: |
-        echo "${{ 'Middle step' }}"
+        echo "Middle step"
   test-includes-script:
     needs: docker-image-build
     runs-on: ubuntu-20.04
@@ -227,10 +227,10 @@ jobs:
         echo "Last step!"
     - name: Middle step
       run: |
-        echo "${{ 'First step' }}"
+        echo "First step"
     - name: First step
       run: |
         echo "First step!"
     - name: Middle step
       run: |
-        echo "${{ 'Middle step' }}"
+        echo "Middle step"

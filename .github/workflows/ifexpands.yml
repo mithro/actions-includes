@@ -71,14 +71,14 @@ jobs:
         echo "First step!"
     - name: Middle step
       run: |
-        echo "${{ 'Hello World' }}"
+        echo "Hello World"
     - name: First step
       if: matrix.use-first
       run: |
         echo "First step!"
     - name: Middle step
       run: |
-        echo "${{ 'Hello World' }}"
+        echo "Hello World"
     - name: Last step
       if: matrix.use-first
       run: |
@@ -89,7 +89,7 @@ jobs:
         echo "First step!"
     - name: Middle step
       run: |
-        echo "${{ 'Hello World' }}"
+        echo "Hello World"
     - name: Last step
       if: matrix.use-last
       run: |
@@ -99,7 +99,7 @@ jobs:
         echo "First step!"
     - name: Middle step
       run: |
-        echo "${{ 'Hello World' }}"
+        echo "Hello World"
     - name: Last step
       if: matrix.use-last
       run: |
@@ -109,10 +109,6 @@ jobs:
       run: |
         echo "Hello world!"
     - name: Step
-      if: matrix.use-first && false
-      run: |
-        echo "Hello world!"
-    - name: Step
-      if: true && matrix.use-last
+      if: matrix.use-last
       run: |
         echo "Hello world!"
