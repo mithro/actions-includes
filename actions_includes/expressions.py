@@ -17,14 +17,18 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+import json
 import re
 
-class ShortName(type):
+from pprint import pprint as p
+
+
+class ExpressionShortName(type):
     def __repr__(self):
         return "<class 'exp.{}'>".format(self.__name__)
 
 
-class Expression(metaclass=ShortName):
+class Expression(metaclass=ExpressionShortName):
     pass
 
 
@@ -49,7 +53,7 @@ def to_literal(v):
     >>> to_literal(Lookup("hello", "testing"))
     'hello.testing'
     """
-    if isinstance(v, (Value, Lookup)):
+    if isinstance(v, Var):
         return str(v)
     # myNull: ${{ null }}
     elif v is None:
@@ -90,6 +94,12 @@ BITS = re.compile('((?P<S>{})|(?P<I>{}))'.format(S, I))
 def swizzle(l):
     """
 
+    >>> p(INFIX_FUNCTIONS)
+    {'!=': <class 'exp.NotEqF'>,
+     '&&': <class 'exp.AndF'>,
+     '==': <class 'exp.EqF'>,
+     '||': <class 'exp.OrF'>}
+
     >>> swizzle([1, '&&', 2])
     (<class 'exp.AndF'>, 1, 2)
     >>> swizzle([1, '&&', 2, '&&', 3])
@@ -111,9 +121,8 @@ def swizzle(l):
             b = l[1]
             c = swizzle(l[2:])
 
-            f = {'&&': AndF, '||': OrF}
-            if b in f:
-                return (f[b], a, c)
+            if b in INFIX_FUNCTIONS:
+                return (INFIX_FUNCTIONS[b], a, c)
         if len(l) == 1:
             return swizzle(l[0])
     return l
@@ -131,29 +140,31 @@ def tokenizer(s):
     ['null', 'true', 'false', '711', '2.0', 'hello.testing', '-9.2', '-2.99-e2']
     >>> list(tokenizer("true || inputs.value"))
     [<class 'exp.OrF'>, True, Lookup('inputs', 'value')]
-    >>> from pprint import pprint as p
 
     >>> p(tokenizer("secrets.GITHUB_TOKEN"))
     Lookup('secrets', 'GITHUB_TOKEN')
     >>> p(tokenizer("inputs.use-me"))
     Lookup('inputs', 'use-me')
 
-    >>> p(tokenizer("!startswith(matrix.os, 'ubuntu') && (true && null && startswith('ubuntu-latest', 'ubuntu'))"))
+    >>> p(tokenizer("!startsWith(matrix.os, 'ubuntu') && (true && null && startsWith('ubuntu-latest', 'ubuntu'))"))
     (<class 'exp.AndF'>,
      (<class 'exp.NotF'>,
-      (<class 'exp.StartsWith'>, Lookup('matrix', 'os'), 'ubuntu')),
+      (<class 'exp.StartsWithF'>, Lookup('matrix', 'os'), 'ubuntu')),
      (<class 'exp.AndF'>,
       True,
       (<class 'exp.AndF'>,
        None,
-       (<class 'exp.StartsWith'>, 'ubuntu-latest', 'ubuntu'))))
-    >>> p(tokenizer("!startswith(matrix.os, 'ubuntu') && (true && startswith('ubuntu-latest', 'ubuntu'))"))
+       (<class 'exp.StartsWithF'>, 'ubuntu-latest', 'ubuntu'))))
+    >>> p(tokenizer("!startsWith(matrix.os, 'ubuntu') && (true && startsWith('ubuntu-latest', 'ubuntu'))"))
     (<class 'exp.AndF'>,
      (<class 'exp.NotF'>,
-      (<class 'exp.StartsWith'>, Lookup('matrix', 'os'), 'ubuntu')),
+      (<class 'exp.StartsWithF'>, Lookup('matrix', 'os'), 'ubuntu')),
      (<class 'exp.AndF'>,
       True,
-      (<class 'exp.StartsWith'>, 'ubuntu-latest', 'ubuntu')))
+      (<class 'exp.StartsWithF'>, 'ubuntu-latest', 'ubuntu')))
+
+    >>> p(tokenizer("a != b"))
+    (<class 'exp.NotEqF'>, Value(a), Value(b))
 
     """
     tree = []
@@ -190,10 +201,10 @@ def tokenizer(s):
             i = swizzle(stack.pop(-1))
         if stack[-1]:
             l = stack[-1][-1]
-            if i == l:
+            if str(l)+str(i) in INFIX_FUNCTIONS:
                 stack[-1][-1] += i
                 continue
-            elif isinstance(l, type) and issubclass(l, Function):
+            elif isinstance(l, type) and issubclass(l, BinFunction):
                 assert len(i) == 3, (l, i)
                 assert i[1] == ',', (l, i)
                 #r = l(i[0], i[2])
@@ -219,9 +230,9 @@ def tokens_eval(t, context={}):
     >>> tokens_eval((NotF, Value('a')))
     not(Value(a))
 
-    >>> tokens_eval((StartsWith, 'ubuntu-latest', 'ubuntu'))
+    >>> tokens_eval((StartsWithF, 'ubuntu-latest', 'ubuntu'))
     True
-    >>> tokens_eval((StartsWith, 'Windows', 'ubuntu'))
+    >>> tokens_eval((StartsWithF, 'Windows', 'ubuntu'))
     False
 
     >>> tokens_eval((AndF, Value('a'), False))
@@ -318,17 +329,85 @@ class BinFunction(Function):
         v = list(v)
         assert len(v) == 2, v
         self.a = v.pop(0)
-        self.b = v.pop(1)
+        self.b = v.pop(0)
         assert not v, v
 
+    def __new__(cls, a, b):
+        if isinstance(a, (Value, Lookup)) or isinstance(b, (Value, Lookup)):
+            o = Function.__new__(cls)
+            o.a = a
+            o.b = b
+            return o
+        a = str(a)
+        b = str(b)
+        return cls.realf(a, b)
 
-class NotF(Function):
+    def __repr__(self):
+        return '{}({!r}, {!r})'.format(self.name, self.a, self.b)
+
+    def __str__(self):
+        a = self.a
+        if isinstance(a, str) and not isinstance(a, Value):
+            a = repr(a)
+        b = self.b
+        if isinstance(b, str) and not isinstance(b, Value):
+            b = repr(b)
+        return '{}({}, {})'.format(self.name, a, b)
+
+
+class UnaryFunction(Function):
+    @property
+    def args(self):
+        return [self.a]
+
+    @args.setter
+    def args(self, v):
+        v = list(v)
+        assert len(v) == 1, v
+        self.a = v.pop(0)
+        assert not v, v
+
+    def __new__(cls, a):
+        if isinstance(a, Expression):
+            o = Function.__new__(cls)
+            o.a = a
+            return o
+        return cls.realf(a)
+
+    def __repr__(self):
+        return '{}({!r})'.format(self.name, self.a)
+
+    def __str__(self):
+        a = self.a
+        if isinstance(a, str) and not isinstance(a, Value):
+            a = repr(a)
+        return '{}({})'.format(self.name, a)
+
+
+class NotF(UnaryFunction):
     """
     >>> a1 = NotF(Value('a'))
     >>> a1
     not(Value(a))
     >>> str(a1)
     '!a'
+    >>> a2 = NotF(NotF(Value('a')))
+    >>> a2
+    not(not(Value(a)))
+    >>> str(a2)
+    '!!a'
+
+    >>> a3 = NotF(OrF(Value('a'), Value('b')))
+    >>> a3
+    not(or(Value(a), Value(b)))
+    >>> str(a3)
+    '!(a || b)'
+
+    >>> a4 = NotF(StartsWithF(Value('a'), Value('b')))
+    >>> a4
+    not(startsWith(Value(a), Value(b)))
+    >>> str(a4)
+    '!startsWith(a, b)'
 
     >>> NotF(True)
     False
@@ -343,19 +422,11 @@ class NotF(Function):
     True
 
     """
-    def __new__(cls, v):
-        if v is True:
-            return False
-        if v in (False, None, ''):
-            return True
+    name = 'not'
 
-        o = Function.__new__(cls)
-        o.args = [v]
-        return o
-
-
-    def __repr__(self):
-        return 'not({})'.format(repr(self.args[0]))
+    @classmethod
+    def realf(cls, v):
+        return not bool(v)
 
     def __str__(self):
         if isinstance(self.args[0], InfixFunction):
@@ -363,7 +434,17 @@ class NotF(Function):
         return '!'+str(self.args[0])
 
 
-class InfixFunction(Function):
+INFIX_FUNCTIONS = {}
+
+
+class InfixFunctionMeta(ExpressionShortName):
+    def __init__(self, *args, **kw):
+        if self.op != None:
+            INFIX_FUNCTIONS[self.op] = self
+        type.__init__(self, *args, **kw)
+
+
+class InfixFunction(Function, metaclass=InfixFunctionMeta):
     name = None
     op = None
 
@@ -372,6 +453,104 @@ class InfixFunction(Function):
 
     def __str__(self):
         return ' {} '.format(self.op).join(str(i) for i in self.args)
+
+
+class BinInfixFunction(InfixFunction, BinFunction):
+    def __new__(cls, *args):
+
+        assert len(args) == 2, args
+        a, b = args
+        if not isinstance(a, Expression) and not isinstance(b, Expression):
+            return cls.realf(a, b)
+        if isinstance(a, (Value, Lookup)) and isinstance(b, (Value, Lookup)):
+            v = cls.expf(a, b)
+            if v in (False, True):
+                return v
+
+        o = Function.__new__(cls)
+        o.args = (a, b)
+        return o
+
+    @staticmethod
+    def realf(a, b):
+        raise NotImplemented
+
+    @staticmethod
+    def expf(a, b):
+        raise NotImplemented
+
+
+class EqF(BinInfixFunction):
+    """
+    >>> a1 = EqF(Value('a'), Value('b'))
+    >>> a1
+    eq(Value(a), Value(b))
+    >>> str(a1)
+    'a == b'
+
+    >>> EqF(True, Value('b'))
+    eq(True, Value(b))
+    >>> EqF(Value('a'), True)
+    eq(Value(a), True)
+
+    >>> EqF(1, 1)
+    True
+
+    >>> EqF(1, 10)
+    False
+
+    >>> EqF(Value('a'), Value('a'))
+    True
+
+    """
+    name = 'eq'
+    op = '=='
+
+    @staticmethod
+    def realf(a, b):
+        return a == b
+
+    @staticmethod
+    def expf(a, b):
+        if a == b:
+            return True
+
+
+class NotEqF(BinInfixFunction):
+    """
+    >>> a1 = NotEqF(Value('a'), Value('b'))
+    >>> a1
+    neq(Value(a), Value(b))
+    >>> str(a1)
+    'a != b'
+
+    >>> NotEqF(True, Value('b'))
+    neq(True, Value(b))
+    >>> NotEqF(Value('a'), True)
+    neq(Value(a), True)
+
+    >>> NotEqF(1, 1)
+    False
+
+    >>> NotEqF(1, 10)
+    True
+
+    >>> NotEqF(Value('a'), Value('a'))
+    False
+
+    """
+    name = 'neq'
+    op = '!='
+
+    @staticmethod
+    def realf(a, b):
+        return a != b
+
+    @staticmethod
+    def expf(a, b):
+        if a == b:
+            return False
+
 
 
 class OrF(InfixFunction):
@@ -483,65 +662,164 @@ class AndF(InfixFunction):
         return o
 
 
-class StartsWith(BinFunction):
+NAMED_FUNCTIONS = {}
+
+
+class NamedFunctionMeta(ExpressionShortName):
+    def __init__(self, *args, **kw):
+        if self.name != None:
+            NAMED_FUNCTIONS[self.name.lower()] = self
+        type.__init__(self, *args, **kw)
+
+
+class NamedFunction(Function, metaclass=NamedFunctionMeta):
+    name = None
+
+
+class StartsWithF(BinFunction, NamedFunction):
     """
 
-    >>> StartsWith('Hello world', 'He')
+    >>> StartsWithF('Hello world', 'He')
     True
-    >>> StartsWith('Hello world', 'Ho')
+    >>> StartsWithF('Hello world', 'Ho')
     False
-    >>> repr(StartsWith(Value('a'), 'Ho'))
-    "startswith(Value(a), 'Ho')"
-    >>> str(StartsWith(Value('a'), 'Ho'))
-    "startswith(a, 'Ho')"
+    >>> repr(StartsWithF(Value('a'), 'Ho'))
+    "startsWith(Value(a), 'Ho')"
+    >>> str(StartsWithF(Value('a'), 'Ho'))
+    "startsWith(a, 'Ho')"
 
     """
-    def __new__(cls, a, b):
-        if isinstance(a, (Value, Lookup)) or isinstance(b, (Value, Lookup)):
-            o = Function.__new__(cls)
-            o.a = a
-            o.b = b
-            return o
-        a = str(a)
-        b = str(b)
+    name = 'startsWith'
+
+    @classmethod
+    def realf(cls, a, b):
+        assert isinstance(a, str), (a, b)
+        assert isinstance(b, str), (a, b)
         return a.startswith(b)
 
-    def __repr__(self):
-        return 'startswith({!r}, {!r})'.format(self.a, self.b)
-    def __str__(self):
-        a = self.a
-        if isinstance(a, str) and not isinstance(a, Value):
-            a = repr(a)
-        b = self.b
-        if isinstance(b, str) and not isinstance(b, Value):
-            b = repr(b)
-        return 'startswith({}, {})'.format(a, b)
 
-
-FUNCTIONS = {
-    'startswith': StartsWith,
-}
-
-
-
-#BITS = re.compile('[0-9-.a-zA-Z]
-
-class Value(str, Expression):
+class EndsWithF(BinFunction, NamedFunction):
     """
+
+    >>> EndsWithF('Hello world', 'He')
+    False
+    >>> EndsWithF('Hello world', 'ld')
+    True
+    >>> repr(EndsWithF(Value('a'), 'Ho'))
+    "endsWith(Value(a), 'Ho')"
+    >>> str(EndsWithF(Value('a'), 'Ho'))
+    "endsWith(a, 'Ho')"
+
+    """
+    name = 'endsWith'
+
+    @classmethod
+    def realf(cls, a, b):
+        assert isinstance(a, str), (a, b)
+        assert isinstance(b, str), (a, b)
+        return a.endswith(b)
+
+
+class ContainsF(BinFunction, NamedFunction):
+    """
+
+    >>> ContainsF('Hello world', 'mo')
+    False
+    >>> ContainsF('Hello world', 'lo')
+    True
+    >>> ContainsF('Hello world', 'He')
+    True
+    >>> ContainsF('Hello world', 'ld')
+    True
+    >>> repr(ContainsF(Value('a'), 'Ho'))
+    "contains(Value(a), 'Ho')"
+    >>> str(ContainsF(Value('a'), 'Ho'))
+    "contains(a, 'Ho')"
+
+    """
+    name = 'contains'
+
+    @classmethod
+    def realf(cls, a, b):
+        assert isinstance(a, str), (a, b)
+        assert isinstance(b, str), (a, b)
+        return b in a
+
+
+class ToJSONF(UnaryFunction, NamedFunction):
+    """
+
+    >>> f = ToJSONF(Value('a'))
+    >>> repr(f)
+    'toJSON(Value(a))'
+    >>> str(f)
+    'toJSON(a)'
+
+    >>> a = ToJSONF(True)
+    >>> a
+    'true'
+    >>> type(a)
+    <class 'str'>
+
+    """
+    name = 'toJSON'
+
+    @classmethod
+    def realf(cls, a):
+        return json.dumps(a)
+
+
+class FromJSONF(UnaryFunction, NamedFunction):
+    """
+
+    >>> f = FromJSONF(Value('a'))
+    >>> repr(f)
+    'fromJSON(Value(a))'
+    >>> str(f)
+    'fromJSON(a)'
+
+    >>> a = FromJSONF('{"a": null, "b": 1.0, "c": false}')
+    >>> p(a)
+    {'a': None, 'b': 1.0, 'c': False}
+    >>> type(a)
+    <class 'dict'>
+
+    """
+    name = 'fromJSON'
+
+    @classmethod
+    def realf(cls, a):
+        assert isinstance(a, str), a
+        return json.loads(a)
+
+
+class Var(Expression):
+    pass
+
+
+class Value(str, Var):
+    """
+    >>> p(NAMED_FUNCTIONS)
+    {'contains': <class 'exp.ContainsF'>,
+     'endswith': <class 'exp.EndsWithF'>,
+     'fromjson': <class 'exp.FromJSONF'>,
+     'startswith': <class 'exp.StartsWithF'>,
+     'tojson': <class 'exp.ToJSONF'>}
+
     >>> v = Value('hello')
     >>> print(v)
     hello
     >>> print(repr(v))
     Value(hello)
-    >>> Value('startswith')
-    <class 'exp.StartsWith'>
     >>> Value('startsWith')
-    <class 'exp.StartsWith'>
+    <class 'exp.StartsWithF'>
+    >>> Value('startsWith')
+    <class 'exp.StartsWithF'>
 
     """
     def __new__(cls, s):
-        if s.lower() in FUNCTIONS:
-            return FUNCTIONS[s.lower()]
+        if s.lower() in NAMED_FUNCTIONS:
+            return NAMED_FUNCTIONS[s.lower()]
         return str.__new__(cls, s)
 
     def __str__(self):
@@ -551,7 +829,7 @@ class Value(str, Expression):
         return 'Value('+str.__str__(self)+')'
 
 
-class Lookup(tuple, Expression):
+class Lookup(tuple, Var):
     """
     >>> l = Lookup("a", "b")
     >>> print(l)
@@ -700,21 +978,21 @@ def simplify(exp, context={}):
     >>> simplify("false && inputs.value")
     False
 
-    >>> simplify("startswith(a, 'testing')")
-    startswith(Value(a), 'testing')
+    >>> simplify("startsWith(a, 'testing')")
+    startsWith(Value(a), 'testing')
 
-    >>> simplify("startswith('testing-123', 'testing')")
+    >>> simplify("startsWith('testing-123', 'testing')")
     True
 
-    >>> simplify("startswith('output', 'testing')")
+    >>> simplify("startsWith('output', 'testing')")
     False
 
-    >>> a = simplify("!startswith(matrix.os, 'ubuntu') && (true && startswith('ubuntu-latest', 'ubuntu'))")
+    >>> a = simplify("!startsWith(matrix.os, 'ubuntu') && (true && startsWith('ubuntu-latest', 'ubuntu'))")
     >>> a
-    not(startswith(Lookup('matrix', 'os'), 'ubuntu'))
+    not(startsWith(Lookup('matrix', 'os'), 'ubuntu'))
     >>> print(str(a))
-    !startswith(matrix.os, 'ubuntu')
-    >>> simplify("!startswith(matrix.os, 'ubuntu') && (true && null && startswith('ubuntu-latest', 'ubuntu'))")
+    !startsWith(matrix.os, 'ubuntu')
+    >>> simplify("!startsWith(matrix.os, 'ubuntu') && (true && null && startsWith('ubuntu-latest', 'ubuntu'))")
     False
 
     """
