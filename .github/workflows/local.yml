@@ -234,3 +234,33 @@ jobs:
     - name: Middle step
       run: |
         echo "Middle step"
+  test-include-some1:
+    needs: docker-image-build
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: mithro/actions-includes@main
+      if: runner.os == 'Linux'
+      continue-on-error: false
+      with:
+        workflow: .github/workflows/local.yml
+    - name: Output message
+      run: |
+        echo "Hello everyone!"
+    - name: Be Polite
+      run: |
+        echo "Goodbye!"
+  test-include-some2:
+    needs: docker-image-build
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: mithro/actions-includes@main
+      if: runner.os == 'Linux'
+      continue-on-error: false
+      with:
+        workflow: .github/workflows/local.yml
+    - name: Message not polite?
+      run: |
+        echo "No hello?"
+    - name: Output message
+      run: |
+        echo "Everyone!"
