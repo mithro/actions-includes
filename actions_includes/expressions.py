@@ -86,7 +86,7 @@ VALUE = re.compile('^[a-zA-Z][_a-zA-Z0-9\\-]*$')
 LOOKUP = re.compile('(?:\\.[a-zA-Z][_a-zA-Z0-9\\-]*)|(?:\\[[^\\]]+\\])')
 
 S = "('[^']*')+"
-I = "[a-zA-Z.\\-0-9_]+"
+I = "[a-zA-Z.\\-0-9_\\[\\]]+"
 
 BITS = re.compile('((?P<S>{})|(?P<I>{}))'.format(S, I))
 
@@ -995,6 +995,33 @@ def simplify(exp, context={}):
     >>> simplify("!startsWith(matrix.os, 'ubuntu') && (true && null && startsWith('ubuntu-latest', 'ubuntu'))")
     False
 
+    >>> b = simplify("a[b].c")
+    >>> b
+    Lookup('a', Value(b), 'c')
+    >>> str(b)
+    'a[b].c'
+
+    >>> ctx = {'a': {'x': {'c': False}, 'y': {'c': True}}}
+    >>> c = simplify("a[b].c", ctx)
+    >>> c
+    Lookup('a', Value(b), 'c')
+    >>> str(c)
+    'a[b].c'
+
+    >>> ctx['b'] = 'x'
+    >>> c = simplify("a[b].c", ctx)
+    >>> c
+    False
+    >>> str(c)
+    'False'
+
+    >>> ctx['b'] = 'y'
+    >>> c = simplify("a[b].c", ctx)
+    >>> c
+    True
+    >>> str(c)
+    'True'
+
     """
     if isinstance(exp, Expression):
         exp = str(exp)
@@ -1032,6 +1059,10 @@ def parse(s):
     Value(hello)
     >>> parse('${{ hello || true }}')
     True
+
+    >>> parse('a[b].c || false')
+    'a[b].c || false'
+
 
     """
     if isinstance(s, str):
