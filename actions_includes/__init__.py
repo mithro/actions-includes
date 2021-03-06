@@ -199,6 +199,31 @@ def simplify_expressions(yaml_item, context):
     >>> simplify_expressions(exp.Value('hello'), {'hello': 'world'})
     'world'
 
+    >>> step = {
+    ...     'if': "startswith(inputs.os, 'ubuntu')",
+    ...     'name': '🚧 Build distribution 📦',
+    ...     'uses': 'RalfG/python-wheels-manylinux-build@v0.3.3-manylinux2010_x86_64',
+    ...     'with': {
+    ...         'build-requirements': 'cython',
+    ...         'pre-build-command': 'bash ',
+    ...         'python-versions': '${{ manylinux-versions[inputs.python-version] }}'
+    ...     }
+    ... }
+    >>> inputs = {
+    ...     'os': exp.Lookup('matrix', 'os'),
+    ...     'python-version': exp.Lookup('matrix', 'python-version'),
+    ...     'root_branch': 'refs/heads/master',
+    ...     'root_user': 'SymbiFlow',
+    ... }
+    >>> p(simplify_expressions(step, {'inputs': inputs, 'manylinux-versions': {'blah'}}))
+    {'if': "startswith(inputs.os, 'ubuntu')",
+     'name': '🚧 Build distribution 📦',
+     'uses': 'RalfG/python-wheels-manylinux-build@v0.3.3-manylinux2010_x86_64',
+     'with': {'build-requirements': 'cython',
+              'pre-build-command': 'bash ',
+              'python-versions': '${{ manylinux-versions[matrix.python-version] '
+                                 '}}'}}
+
     """
     if isinstance(yaml_item, dict):
         for k in list(yaml_item.keys()):

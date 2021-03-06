@@ -240,11 +240,10 @@ def var_eval(v, context):
     cv = list(ov)
     while len(cv) > 0:
         j = cv.pop(0)
-
-        if j in ctx:
-            ctx = ctx[j]
-        else:
+        if j not in ctx:
+            cv.insert(0, j)
             break
+        ctx = ctx[j]
 
     if not cv:
         return ctx
@@ -315,7 +314,7 @@ def tokens_eval(t, context={}):
     >>> c['a'] = 'c' ; tokens_eval(l1, c), tokens_eval(l2, c)
     (Value(z), Value(y))
     >>> c['a'] = 'd' ; tokens_eval(l1, c), tokens_eval(l2, c)
-    (Value(x), {'b': Value(z), 'c': Value(y)})
+    (Value(x), Lookup('c', 'd'))
 
     >>> tokens_eval(Lookup('a', Value('b'), 'c'), {'b': Lookup('x', 'y')})
     Lookup('a', Lookup('x', 'y'), 'c')
