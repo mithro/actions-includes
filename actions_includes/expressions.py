@@ -217,6 +217,39 @@ def tokenizer(s):
     return swizzle(stack[0])
 
 
+
+def var_eval(v, context):
+    assert isinstance(v, Var), (v, context)
+    assert isinstance(context, dict), (v, context)
+    if isinstance(v, Value):
+        if v in context:
+            return context[v]
+        else:
+            return v
+    assert isinstance(v, Lookup), (v, context)
+
+    ov = list(v)
+    for i, j in enumerate(ov):
+        if isinstance(j, Var):
+            ov[i] = var_eval(j, context)
+
+    ctx = context
+    cv = list(ov)
+    while len(cv) > 0:
+        j = cv.pop(0)
+
+        if j in ctx:
+            ctx = ctx[j]
+        else:
+            break
+
+    if not cv:
+        return ctx
+    else:
+        return Lookup(ov)
+
+
+
 def tokens_eval(t, context={}):
     """
     >>> tokens_eval(True)
@@ -279,27 +312,16 @@ def tokens_eval(t, context={}):
     >>> c['a'] = 'c' ; tokens_eval(l1, c), tokens_eval(l2, c)
     (Value(z), Value(y))
     >>> c['a'] = 'd' ; tokens_eval(l1, c), tokens_eval(l2, c)
-    (Value(x), Lookup('c', Value(a)))
+    (Value(x), {'b': Value(z), 'c': Value(y)})
+
+    >>> tokens_eval(Lookup('a', Value('b'), 'c'), {'b': Lookup('x', 'y')})
+    Lookup('a', Lookup('x', 'y'), 'c')
 
     """
     assert not isinstance(t, list), t
 
-    if isinstance(t, Lookup) and context:
-        v = context
-        to = list(t)
-        while len(to) > 0 and isinstance(v, dict):
-            if isinstance(to[0], Value):
-                if to[0] in context:
-                    to[0] = context[to[0]]
-            if to[0] not in v:
-                break
-            v = v[to.pop(0)]
-        if not to:
-            t = v
-
-    if isinstance(t, Value) and context:
-        if t in context:
-            t = context[t]
+    if isinstance(t, Var) and context:
+        t = var_eval(t, context)
 
     if isinstance(t, tuple) and not isinstance(t, Lookup):
         assert isinstance(type(t[0]), type), t
@@ -858,7 +880,7 @@ class Lookup(tuple, Var):
     def __str__(self):
         o = []
         for i in self:
-            if isinstance(i, Value):
+            if isinstance(i, Var):
                 o.append('[{}]'.format(i))
             elif isinstance(i, str):
                 if o:
@@ -1021,6 +1043,14 @@ def simplify(exp, context={}):
     True
     >>> str(c)
     'True'
+
+    >>> ctx = {'a': {'x': {'c': False}, 'y': {'c': True}}}
+    >>> ctx['b'] = Lookup('other', 'place')
+    >>> c = simplify("a[b].c", ctx)
+    >>> c
+    Lookup('a', Lookup('other', 'place'), 'c')
+    >>> str(c)
+    'a[other.place].c'
 
     """
     if isinstance(exp, Expression):
