@@ -166,6 +166,9 @@ def tokenizer(s):
     >>> p(tokenizer("a != b"))
     (<class 'exp.NotEqF'>, Value(a), Value(b))
 
+    >>> p(tokenizer("manylinux-versions[inputs.python-version]"))
+    Lookup('manylinux-versions', Lookup('inputs', 'python-version'))
+
     """
     tree = []
     def split(s):
@@ -842,6 +845,7 @@ class Value(str, Var):
     def __new__(cls, s):
         if s.lower() in NAMED_FUNCTIONS:
             return NAMED_FUNCTIONS[s.lower()]
+        assert '.' not in s, s
         return str.__new__(cls, s)
 
     def __str__(self):
@@ -924,6 +928,10 @@ def from_literal(v):
     Lookup('a', 'b')
     >>> from_literal("a[b]")
     Lookup('a', Value(b))
+    >>> from_literal("a[12]")
+    Lookup('a', 12)
+    >>> from_literal("a[b.c]")
+    Lookup('a', Lookup('b', 'c'))
     >>> from_literal("a.b.c")
     Lookup('a', 'b', 'c')
     >>> from_literal("a[b].c")
@@ -961,7 +969,7 @@ def from_literal(v):
                 args.append(s[1:])
             elif s.startswith('['):
                 assert s.endswith(']'), (s, v)
-                args.append(Value(s[1:-1]))
+                args.append(from_literal(s[1:-1]))
         return Lookup(args)
 
     if VALUE.match(v):
@@ -1051,6 +1059,9 @@ def simplify(exp, context={}):
     Lookup('a', Lookup('other', 'place'), 'c')
     >>> str(c)
     'a[other.place].c'
+
+    >>> simplify('manylinux-versions[inputs.python-version]', {'inputs': {'python-version': 12}})
+    Lookup('manylinux-versions', 12)
 
     """
     if isinstance(exp, Expression):

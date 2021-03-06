@@ -30,6 +30,7 @@ import urllib
 import urllib.request
 import yaml
 
+from pprint import pprint as p
 from collections import namedtuple
 from . import expressions as exp
 
@@ -209,9 +210,8 @@ def simplify_expressions(yaml_item, context):
         yaml_item = exp.simplify(yaml_item, context)
     elif isinstance(yaml_item, str):
         def replace_exp(m):
-            e = m.group(1)
+            e = m.group(1).strip()
             v = exp.simplify(e, context)
-
             if isinstance(v, exp.Expression):
                 return '${{ %s }}' % (v,)
             else:
