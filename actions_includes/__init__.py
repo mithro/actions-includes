@@ -511,8 +511,8 @@ def main(args):
                 i += 1
 
             tfile = outpath
-            to_path = outpath
             to_abspath = outpath.resolve()
+            to_path = to_abspath.relative_to(repo_root)
         else:
             printerr("Expanding", from_filename, "into", to_filename)
             to_abspath = pathlib.Path(to_filename).resolve()
