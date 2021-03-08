@@ -42,8 +42,12 @@ def to_literal(v):
     'false'
     >>> to_literal(711)
     '711'
+    >>> to_literal(-710)
+    '-710'
     >>> to_literal(2.0)
     '2.0'
+    >>> to_literal(-2.0)
+    '-2.0'
     >>> to_literal('Mona the Octocat')
     "'Mona the Octocat'"
     >>> to_literal("It's open source")
@@ -946,9 +950,13 @@ def from_literal(v):
 
     >>> from_literal('711')
     711
+    >>> from_literal('-711')
+    -711
 
     >>> from_literal('2.0')
     2.0
+    >>> from_literal('-2.0')
+    -2.0
 
     >>> from_literal("'Mona the Octocat'")
     'Mona the Octocat'
