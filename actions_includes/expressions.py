@@ -370,12 +370,8 @@ class BinFunction(Function):
         return '{}({!r}, {!r})'.format(self.name, self.a, self.b)
 
     def __str__(self):
-        a = self.a
-        if isinstance(a, str) and not isinstance(a, Value):
-            a = repr(a)
-        b = self.b
-        if isinstance(b, str) and not isinstance(b, Value):
-            b = repr(b)
+        a = to_literal(self.a)
+        b = to_literal(self.b)
         return '{}({}, {})'.format(self.name, a, b)
 
 
@@ -402,9 +398,7 @@ class UnaryFunction(Function):
         return '{}({!r})'.format(self.name, self.a)
 
     def __str__(self):
-        a = self.a
-        if isinstance(a, str) and not isinstance(a, Value):
-            a = repr(a)
+        a = to_literal(self.a)
         return '{}({})'.format(self.name, a)
 
 
@@ -432,6 +426,12 @@ class NotF(UnaryFunction):
     not(startsWith(Value(a), Value(b)))
     >>> str(a4)
     '!startsWith(a, b)'
+
+    >>> a5 = NotF(EqF(Value('a'), None))
+    >>> a5
+    not(eq(Value(a), None))
+    >>> str(a5)
+    '!(a == null)'
 
     >>> NotF(True)
     False
@@ -476,7 +476,7 @@ class InfixFunction(Function, metaclass=InfixFunctionMeta):
         return '{}({})'.format(self.name, ', '.join(repr(i) for i in self.args))
 
     def __str__(self):
-        return ' {} '.format(self.op).join(str(i) for i in self.args)
+        return ' {} '.format(self.op).join(to_literal(i) for i in self.args)
 
 
 class BinInfixFunction(InfixFunction, BinFunction):
@@ -516,6 +516,30 @@ class EqF(BinInfixFunction):
     eq(True, Value(b))
     >>> EqF(Value('a'), True)
     eq(Value(a), True)
+
+    >>> a2 = EqF(Value('a'), True)
+    >>> a2
+    eq(Value(a), True)
+    >>> str(a2)
+    'a == true'
+
+    >>> a3 = EqF(None, Value('b'))
+    >>> a3
+    eq(None, Value(b))
+    >>> str(a3)
+    'null == b'
+
+    >>> a4 = EqF("Hello", Lookup('a', 'b'))
+    >>> a4
+    eq('Hello', Lookup('a', 'b'))
+    >>> str(a4)
+    "'Hello' == a.b"
+
+    >>> a5 = EqF("'ello", Lookup('a', 'b'))
+    >>> a5
+    eq("'ello", Lookup('a', 'b'))
+    >>> str(a5)
+    "'''ello' == a.b"
 
     >>> EqF(1, 1)
     True
@@ -711,6 +735,8 @@ class StartsWithF(BinFunction, NamedFunction):
     "startsWith(Value(a), 'Ho')"
     >>> str(StartsWithF(Value('a'), 'Ho'))
     "startsWith(a, 'Ho')"
+    >>> str(StartsWithF(Value('a'), "M'lady"))
+    "startsWith(a, 'M''lady')"
 
     """
     name = 'startsWith'
