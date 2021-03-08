@@ -206,6 +206,7 @@ def simplify_expressions(yaml_item, context):
     ...     'if': "startswith(inputs.os, 'ubuntu')",
     ...     'name': '🚧 Build distribution 📦',
     ...     'uses': 'RalfG/python-wheels-manylinux-build@v0.3.3-manylinux2010_x86_64',
+    ...     'str': '${{ inputs.empty }}',
     ...     'with': {
     ...         'build-requirements': 'cython',
     ...         'pre-build-command': 'bash ',
@@ -217,10 +218,12 @@ def simplify_expressions(yaml_item, context):
     ...     'python-version': exp.Lookup('matrix', 'python-version'),
     ...     'root_branch': 'refs/heads/master',
     ...     'root_user': 'SymbiFlow',
+    ...     'empty': '',
     ... }
     >>> p(simplify_expressions(step, {'inputs': inputs, 'manylinux-versions': {'blah'}}))
     {'if': "startswith(inputs.os, 'ubuntu')",
      'name': '🚧 Build distribution 📦',
+     'str': '',
      'uses': 'RalfG/python-wheels-manylinux-build@v0.3.3-manylinux2010_x86_64',
      'with': {'build-requirements': 'cython',
               'pre-build-command': 'bash ',

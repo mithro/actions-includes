@@ -1033,9 +1033,9 @@ def simplify(exp, context={}):
     >>> simplify("false")
     False
     >>> simplify("''")
-    False
-    >>> simplify("null")
-    False
+    ''
+    >>> str(simplify("null"))
+    'None'
 
     >>> simplify("inputs")
     Value(inputs)
@@ -1110,6 +1110,9 @@ def simplify(exp, context={}):
     >>> simplify('manylinux-versions[inputs.python-version]', {'inputs': {'python-version': 12}})
     Lookup('manylinux-versions', 12)
 
+    >>> simplify(parse('${{ inputs.empty }}'), {'inputs': {'empty': ''}})
+    ''
+
     """
     if isinstance(exp, Expression):
         exp = str(exp)
@@ -1123,12 +1126,7 @@ def simplify(exp, context={}):
         if o in context:
             o = context[o]
 
-    if o in (True, False):
-        return o
-    elif o in ('', None):
-        return False
-    else:
-        return o
+    return o
 
 
 def parse(s):
@@ -1151,6 +1149,8 @@ def parse(s):
     >>> parse('a[b].c || false')
     'a[b].c || false'
 
+    >>> parse('')
+    ''
 
     """
     if isinstance(s, str):
