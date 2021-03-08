@@ -346,7 +346,11 @@ def tokens_eval(t, context={}):
 
 
 class Function(Expression):
-    pass
+    def __copy__(self):
+        return type(self)(self.args)
+
+    def __deepcopy__(self, memo=None):
+        return type(self)(*self.args)
 
 
 class BinFunction(Function):
@@ -488,7 +492,7 @@ class InfixFunction(Function, metaclass=InfixFunctionMeta):
 class BinInfixFunction(InfixFunction, BinFunction):
     def __new__(cls, *args):
 
-        assert len(args) == 2, args
+        assert len(args) == 2, (cls, args)
         a, b = args
         if not isinstance(a, Expression) and not isinstance(b, Expression):
             return cls.realf(a, b)
