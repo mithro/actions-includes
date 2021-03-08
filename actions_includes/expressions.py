@@ -52,8 +52,10 @@ def to_literal(v):
     'hello'
     >>> to_literal(Lookup("hello", "testing"))
     'hello.testing'
+    >>> to_literal(ContainsF(Lookup("hello"), "testing"))
+    "contains(hello, 'testing')"
     """
-    if isinstance(v, Var):
+    if isinstance(v, Expression):
         return str(v)
     # myNull: ${{ null }}
     elif v is None:
@@ -900,9 +902,17 @@ class Lookup(tuple, Var):
     >>> print(repr(l))
     Lookup('1', Value(a))
 
+    >>> l = Lookup("hello")
+    >>> print(l)
+    hello
+    >>> print(repr(l))
+    Value(hello)
     """
     def __new__(cls, *args):
-        if len(args) > 1:
+        if len(args) == 1:
+            if isinstance(args[0], str):
+                return Value(args[0])
+        elif len(args) > 1:
             args = (args,)
         return tuple.__new__(cls, *args)
 
@@ -920,7 +930,7 @@ class Lookup(tuple, Var):
         return ''.join(o)
 
     def __repr__(self):
-        return 'Lookup'+tuple.__repr__(self)
+        return 'Lookup({})'.format(", ".join(repr(i) for i in self))
 
 
 def from_literal(v):
