@@ -26,6 +26,10 @@ runs:
   using: "includes"
 
   steps:
+  - name: Test
+    if: ${{ !startsWith(runner.os, 'Linux') }}
+    run: true
+
   - name: Message not polite?
     if: ${{ !startsWith(inputs.message, 'Hello') }}
     run: |

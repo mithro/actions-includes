@@ -243,6 +243,9 @@ jobs:
       continue-on-error: false
       with:
         workflow: .github/workflows/local.yml
+    - name: Test
+      if: ${{ !startsWith(runner.os, 'Linux') }}
+      run: true
     - name: Output message
       run: |
         echo "Hello everyone!"
@@ -258,6 +261,9 @@ jobs:
       continue-on-error: false
       with:
         workflow: .github/workflows/local.yml
+    - name: Test
+      if: ${{ !startsWith(runner.os, 'Linux') }}
+      run: true
     - name: Message not polite?
       run: |
         echo "No hello?"

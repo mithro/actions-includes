@@ -66,32 +66,32 @@ jobs:
       with:
         workflow: .github/workflows/ifexpands.yml
     - name: First step
-      if: matrix.use-first
+      if: ${{ matrix.use-first }}
       run: |
         echo "First step!"
     - name: Middle step
       run: |
         echo "Hello World"
     - name: First step
-      if: matrix.use-first
+      if: ${{ matrix.use-first }}
       run: |
         echo "First step!"
     - name: Middle step
       run: |
         echo "Hello World"
     - name: Last step
-      if: matrix.use-first
+      if: ${{ matrix.use-first }}
       run: |
         echo "Last step!"
     - name: First step
-      if: matrix.use-last
+      if: ${{ matrix.use-last }}
       run: |
         echo "First step!"
     - name: Middle step
       run: |
         echo "Hello World"
     - name: Last step
-      if: matrix.use-last
+      if: ${{ matrix.use-last }}
       run: |
         echo "Last step!"
     - name: First step
@@ -101,14 +101,14 @@ jobs:
       run: |
         echo "Hello World"
     - name: Last step
-      if: matrix.use-last
+      if: ${{ matrix.use-last }}
       run: |
         echo "Last step!"
     - name: Step
-      if: matrix.use-first && matrix.use-last
+      if: ${{ matrix.use-first && matrix.use-last }}
       run: |
         echo "Hello world!"
     - name: Step
-      if: matrix.use-last
+      if: ${{ matrix.use-last }}
       run: |
         echo "Hello world!"

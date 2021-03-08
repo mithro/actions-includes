@@ -221,8 +221,7 @@ def simplify_expressions(yaml_item, context):
      'uses': 'RalfG/python-wheels-manylinux-build@v0.3.3-manylinux2010_x86_64',
      'with': {'build-requirements': 'cython',
               'pre-build-command': 'bash ',
-              'python-versions': '${{ manylinux-versions[matrix.python-version] '
-                                 '}}'}}
+              'python-versions': Lookup('manylinux-versions', Lookup('matrix', 'python-version'))}}
 
     """
     if isinstance(yaml_item, dict):
@@ -234,15 +233,20 @@ def simplify_expressions(yaml_item, context):
     elif isinstance(yaml_item, exp.Expression):
         yaml_item = exp.simplify(yaml_item, context)
     elif isinstance(yaml_item, str):
-        def replace_exp(m):
-            e = m.group(1).strip()
-            v = exp.simplify(e, context)
-            if isinstance(v, exp.Expression):
-                return '${{ %s }}' % (v,)
-            else:
-                return str(v)
+        yaml_item_stripped = yaml_item.strip()
+        if yaml_item_stripped.startswith('${{') and yaml_item_stripped.endswith('}}'):
+            yaml_item = exp.parse(yaml_item_stripped)
+            yaml_item = exp.simplify(yaml_item, context)
+        else:
+            def replace_exp(m):
+                e = m.group(1).strip()
+                v = exp.simplify(e, context)
+                if isinstance(v, exp.Expression):
+                    return '${{ %s }}' % (v,)
+                else:
+                    return str(v)
 
-        yaml_item = RE_EXP.sub(replace_exp, yaml_item)
+            yaml_item = RE_EXP.sub(replace_exp, yaml_item)
     return yaml_item
 
 
@@ -268,7 +272,10 @@ def popout_if(d):
         return v
     if not isinstance(v, str):
         return v
+    v = v.strip()
     if not v.startswith('${{'):
+        assert '${{' not in v, (v, d)
+        assert not v.endswith('}}'), (v, d)
         v = "${{ %s }}" % v
     return exp.parse(v)
 
@@ -317,7 +324,7 @@ def expand_step_includes(current_action, out_list, include_step):
         printdbg('Inputs:\n', pprint.pformat(inputs))
         printdbg('Before:\n', pprint.pformat(step))
         printdbg('Before Step If:', repr(step_if))
-        simplify_expressions(step, context)
+        step = simplify_expressions(step, context)
         printdbg('---')
         current_if = exp.AndF(include_if, exp.simplify(step_if, context))
         printdbg('After:\n', pprint.pformat(step))
@@ -325,7 +332,7 @@ def expand_step_includes(current_action, out_list, include_step):
         printdbg('\n', end='')
 
         if isinstance(current_if, exp.Expression):
-            step['if'] = str(current_if)
+            step['if'] = current_if
         elif current_if in (False, None, ''):
             continue
         else:
@@ -441,10 +448,10 @@ class On:
 
 
 def exp_presenter(dumper, data):
-    return str_presenter(dumper, str(data))
+    return dumper.represent_scalar('tag:yaml.org,2002:str', '${{ '+str(data)+' }}')
 
 
-yaml.add_representer(exp.Expression, exp_presenter)
+yaml.add_multi_representer(exp.Expression, exp_presenter)
 yaml.add_representer(str, str_presenter)
 yaml.add_representer(None.__class__, none_presenter)
 yaml.add_representer(On, On.presenter)
