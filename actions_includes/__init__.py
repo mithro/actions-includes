@@ -199,6 +199,9 @@ def simplify_expressions(yaml_item, context):
     >>> simplify_expressions(exp.Value('hello'), {'hello': 'world'})
     'world'
 
+    >>> simplify_expressions('${{ hello }}-${{ world }}', {'hello': 'world'})
+    'world-${{ world }}'
+
     >>> step = {
     ...     'if': "startswith(inputs.os, 'ubuntu')",
     ...     'name': '🚧 Build distribution 📦',
@@ -234,7 +237,11 @@ def simplify_expressions(yaml_item, context):
         yaml_item = exp.simplify(yaml_item, context)
     elif isinstance(yaml_item, str):
         yaml_item_stripped = yaml_item.strip()
-        if yaml_item_stripped.startswith('${{') and yaml_item_stripped.endswith('}}'):
+
+        exp_bits = yaml_item_stripped[:3] + yaml_item_stripped[-2:]
+        mid_bits = yaml_item_stripped[3:-2]
+
+        if exp_bits == '${{}}' and '${{' not in mid_bits:
             yaml_item = exp.parse(yaml_item_stripped)
             yaml_item = exp.simplify(yaml_item, context)
         else:
