@@ -367,9 +367,21 @@ def expand_step_includes_script(current_action, out_list, v):
     if script.endswith('.py'):
         # Standard shell, no `{0}` needed.
         v['shell'] = 'python'
+    elif script.endswith('.ps1'):
+        # Standard shell, no `{0}` needed.
+        v['shell'] = 'pwsh'
+    elif script.endswith('.cmd'):
+        # Standard shell, no `{0}` needed.
+        v['shell'] = 'cmd'
     elif script.endswith('.rb'):
         # Non-standard shell, `{0}` needed.
         v['shell'] = 'ruby {0}'
+    elif script.endswith('.pl'):
+        # Non-standard shell, `{0}` needed.
+        v['shell'] = 'perl {0}'
+    elif script.endswith('.cmake'):
+        # Non-standard shell, `{0}` needed.
+        v['shell'] = 'cmake -P {0}'
     elif script.endswith('.sh'):
         if 'shell' not in v:
             # Standard shell, no `{0}` needed.
