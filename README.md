@@ -90,3 +90,6 @@ File: `oworkflow.out.yml`
 >   run: |
 >     command
 > ```
+
+The `shell` parameter is deduced from the file extension, but it is possible to
+use a custom shell by setting the `shell` parameter manually.
