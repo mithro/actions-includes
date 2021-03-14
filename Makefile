@@ -143,9 +143,9 @@ image-test: image
 
 
 # Update the GitHub action workflows
-WORKFLOWS = $(addprefix .github/workflows/,$(notdir $(wildcard ./tests/workflows/*.yml)))
+WORKFLOWS = $(addprefix .github/workflows/test.,$(notdir $(wildcard ./tests/workflows/*.yml)))
 
-.github/workflows/%.yml: tests/workflows/%.yml actions_includes/__init__.py
+.github/workflows/test.%.yml: tests/workflows/%.yml actions_includes/__init__.py
 	@echo
 	@echo "Updating $@"
 	@echo "--------------------------------------"

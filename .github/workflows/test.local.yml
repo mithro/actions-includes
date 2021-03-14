@@ -32,7 +32,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/local.yml
+        workflow: .github/workflows/test.local.yml
     - id: wait
       name: Wait for Docker Image build
       uses: fountainhead/action-wait-for-check@v1.0.0
@@ -56,7 +56,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/local.yml
+        workflow: .github/workflows/test.local.yml
     - run: |
         echo "Pre-step"
     - name: First step
@@ -78,7 +78,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/local.yml
+        workflow: .github/workflows/test.local.yml
     - run: |
         echo "Pre-step"
     - name: Middle step
@@ -94,7 +94,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/local.yml
+        workflow: .github/workflows/test.local.yml
     - name: First step
       run: |
         echo "First step!"
@@ -109,7 +109,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/local.yml
+        workflow: .github/workflows/test.local.yml
     - name: Middle step
       run: |
         echo "First step"
@@ -145,7 +145,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/local.yml
+        workflow: .github/workflows/test.local.yml
     - name: Middle step
       run: |
         echo "First step"
@@ -181,7 +181,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/local.yml
+        workflow: .github/workflows/test.local.yml
     - name: Included Python Script
       run: |
         print('Hello from Python!')
@@ -198,7 +198,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/local.yml
+        workflow: .github/workflows/test.local.yml
     - name: First step
       run: |
         echo "First step!"
@@ -242,7 +242,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/local.yml
+        workflow: .github/workflows/test.local.yml
     - name: Test
       if: ${{ !startsWith(runner.os, 'Linux') }}
       run: true
@@ -260,7 +260,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/local.yml
+        workflow: .github/workflows/test.local.yml
     - name: Test
       if: ${{ !startsWith(runner.os, 'Linux') }}
       run: true

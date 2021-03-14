@@ -32,7 +32,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/ifexpands.yml
+        workflow: .github/workflows/test.ifexpands.yml
     - id: wait
       name: Wait for Docker Image build
       uses: fountainhead/action-wait-for-check@v1.0.0
@@ -64,7 +64,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/ifexpands.yml
+        workflow: .github/workflows/test.ifexpands.yml
     - name: First step
       if: ${{ matrix.use-first }}
       run: |
