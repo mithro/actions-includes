@@ -19,12 +19,7 @@
 
 import sys
 
-if sys.argv[1] == '--test':
-    sys.argv.pop(1)
-    import doctest
-    e = doctest.testmod(sys.modules['actions_includes'])
-    e += doctest.testmod(sys.modules['actions_includes.expressions'])
-    sys.exit(e)
-else:
-    from . import main
+from . import main
+
+if __name__ == "__main__":
     sys.exit(main(sys.argv))

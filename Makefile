@@ -30,9 +30,9 @@ venv-clean:
 
 .PHONY: venv-clean
 
-venv:
+venv: $(wildcard requirements*.txt)
 	virtualenv --python=python3 venv
-	${ACTIVATE} pip install twine
+	${ACTIVATE} pip install -r requirements.txt
 	${ACTIVATE} pip install -e .
 
 .PHONY: venv
@@ -50,7 +50,7 @@ build: clean
 
 # Run Python test suite
 test:
-	${ACTIVATE} python -m actions_includes --test -v
+	${ACTIVATE} pytest --verbose
 
 .PHONY: test
 
