@@ -18,7 +18,7 @@
 # Do not modify this file directly!
 # !! WARNING !!
 #
-# It is generated from: ../../tests/workflows/local.yml
+# It is generated from: ../../tests/workflows/actions-remote.yml
 # using the script from https://github.com/mithro/actions-includes@main
 
 on:
@@ -32,7 +32,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/test.local.yml
+        workflow: .github/workflows/test.actions-remote.yml
     - id: wait
       name: Wait for Docker Image build
       uses: fountainhead/action-wait-for-check@v1.0.0
@@ -56,7 +56,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/test.local.yml
+        workflow: .github/workflows/test.actions-remote.yml
     - run: |
         echo "Pre-step"
     - name: First step
@@ -78,7 +78,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/test.local.yml
+        workflow: .github/workflows/test.actions-remote.yml
     - run: |
         echo "Pre-step"
     - name: Middle step
@@ -94,14 +94,14 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/test.local.yml
+        workflow: .github/workflows/test.actions-remote.yml
     - name: First step
       run: |
         echo "First step!"
     - name: Middle step
       run: |
         echo "Hello World"
-  test-recursive-local-with-local:
+  test-recursive-remote-with-local:
     needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
@@ -109,7 +109,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/test.local.yml
+        workflow: .github/workflows/test.actions-remote.yml
     - name: Middle step
       run: |
         echo "First step"
@@ -137,7 +137,7 @@ jobs:
     - name: Middle step
       run: |
         echo "Middle step"
-  test-recursive-local-with-remote:
+  test-recursive-remote-with-remote:
     needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
@@ -145,7 +145,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/test.local.yml
+        workflow: .github/workflows/test.actions-remote.yml
     - name: Middle step
       run: |
         echo "First step"
@@ -173,6 +173,21 @@ jobs:
     - name: Middle step
       run: |
         echo "Middle step"
+  test-other-location:
+    needs: docker-image-build
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: mithro/actions-includes@main
+      if: runner.os == 'Linux'
+      continue-on-error: false
+      with:
+        workflow: .github/workflows/test.actions-remote.yml
+    - name: First step
+      run: |
+        echo "First step!"
+    - name: Last step
+      run: |
+        echo "Last step!"
   test-includes-script:
     needs: docker-image-build
     runs-on: ubuntu-20.04
@@ -181,7 +196,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/test.local.yml
+        workflow: .github/workflows/test.actions-remote.yml
     - name: Included Python Script
       run: |
         print('Hello from Python!')
@@ -198,7 +213,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/test.local.yml
+        workflow: .github/workflows/test.actions-remote.yml
     - name: First step
       run: |
         echo "First step!"
@@ -242,7 +257,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/test.local.yml
+        workflow: .github/workflows/test.actions-remote.yml
     - name: Test
       if: ${{ !startsWith(runner.os, 'Linux') }}
       run: true
@@ -260,7 +275,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/test.local.yml
+        workflow: .github/workflows/test.actions-remote.yml
     - name: Test
       if: ${{ !startsWith(runner.os, 'Linux') }}
       run: true

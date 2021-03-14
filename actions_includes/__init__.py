@@ -82,14 +82,14 @@ def get_action_data(current_action, action_name):
 
 
 JOBS_YAML_NAMES = [
-    '/jobs.yml',
-    '/jobs.yaml',
+    '/workflow.yml',
+    '/workflow.yaml',
 ]
 
 
-def get_jobs_data(current_workflow, jobs_name):
+def get_workflow_data(current_workflow, jobs_name):
     jobs_dirpath = get_filepath(current_workflow, jobs_name)
-    printerr("get_jobs_data:", current_workflow, jobs_name, jobs_dirpath)
+    printerr("get_workflow_data:", current_workflow, jobs_name, jobs_dirpath)
 
     errors = {}
     for f in JOBS_YAML_NAMES:
@@ -112,9 +112,7 @@ def get_jobs_data(current_workflow, jobs_name):
 
     printerr("Including:", jobs_filepath)
     yaml_data = yaml_load_and_expand(jobs_filepath, data)
-    assert 'runs' in yaml_data, pprint.pformat(yaml_data)
-    assert yaml_data['runs'].get(
-        'using', None) == 'includes', pprint.pformat(yaml_data)
+    assert 'jobs' in yaml_data, pprint.pformat(yaml_data)
     return yaml_data
 
 
@@ -355,8 +353,10 @@ def expand_list(current_action, yaml_list):
     return yaml_list
 
 
-def expand_jobs_includes(current_workflow, include_jobs):
-    include_yamldata = get_jobs_data(current_workflow, include_jobs['includes'])
+def expand_jobs_includes(current_workflow, ojobname, include_jobs):
+    if not ojobname:
+        ojobname = ''
+    include_yamldata = get_workflow_data(current_workflow, include_jobs['includes'])
     assert 'jobs' in include_yamldata, pprint.pformat(include_yamldata)
 
     # Calculate the inputs dictionary
@@ -378,49 +378,67 @@ def expand_jobs_includes(current_workflow, include_jobs):
 
         inputs[in_name] = exp.parse(v)
 
-    context = copy.deepcopy(include_yamldata)
+    context = dict(include_yamldata)
     context['inputs'] = inputs
     printdbg('\nInclude Jobs:\n', pprint.pformat(include_jobs))
     printdbg('Inputs:\n', pprint.pformat(inputs))
     printdbg('\n')
 
-    assert 'runs' in include_yamldata, include_yamldata
-    assert 'jobss' in include_yamldata['runs'], include_yamldata['jobss']
-
-    new_dict = {}
+    new_jobs = []
     for i, jobname in enumerate(include_yamldata['jobs']):
-        job_dict = include_yamldata['jobs'][jobname]
-        jobs_if = pop_if_exp(jobs)
+        jobs_map = include_yamldata['jobs'][jobname]
+        jobs_if = pop_if_exp(jobs_map)
 
-        printdbg('\nJob:', include_jobs['includes']+f'#{i} - {jobname}')
+        printdbg('\nJob:', f'{ojobname}#{i} - {jobname}')
         printdbg('Inputs:\n', pprint.pformat(inputs))
         printdbg('Before:\n', pprint.pformat(jobs_map))
         printdbg('Before Job If:', repr(jobs_if))
-        jobs_out_map = simplify_expressions(jobs_map, context)
+        jobs_map_out = simplify_expressions(jobs_map, context)
         printdbg('---')
         current_if = exp.simplify(jobs_if, context)
-        printdbg('After:\n', pprint.pformat(jobs_out_map))
+        printdbg('After:\n', pprint.pformat(jobs_map_out))
         printdbg('After If:', repr(current_if))
         printdbg('\n', end='')
 
+        if 'needs' in jobs_map:
+            needs = jobs_map['needs']
+            if isinstance(needs, list):
+                jobs_map.replace('needs', [ojobname+i for i in needs])
+            elif isinstance(needs, str):
+                jobs_map.replace('needs', ojobname+needs)
+            else:
+                assert False, (needs, jobs_map)
+
         if isinstance(current_if, exp.Expression):
-            jobs['if'] = current_if
+            jobs_map_out['if'] = current_if
         elif current_if in (False, None, ''):
             continue
         else:
             assert current_if is True, (current_if, repr(current_if))
-            if 'if' in jobs:
-                del jobs['if']
+            if 'if' in jobs_map_out:
+                del jobs_map_out['if']
 
-        out_map.append(jobname, job_out_map)
+        new_jobs.append((ojobname+jobname, jobs_map_out))
+
+    jobnames = [n for n, m in new_jobs]
+    for n, job_map in new_jobs:
+        if 'needs' not in job_map:
+            continue
+        needs = job_map['needs']
+        if isinstance(needs, str):
+            needs = [needs]
+        for j in needs:
+            assert j in jobnames, (j, jobnames)
+
+    return new_jobs
 
 
 def expand_jobs_map(current_workflow, yaml_map):
     yaml_map_out = YamlMap()
     for k, v in yaml_map.items():
         assert isinstance(v, YamlMap), pprint.pformat((k, v))
-        if k == 'includes':
-            for jobname, jobinfo in expand_jobs_includes(current_workflow, v):
+        if 'includes' in v:
+            for jobname, jobinfo in expand_jobs_includes(current_workflow, k, v):
                 yaml_map_out[jobname] = jobinfo
         else:
             yaml_map_out[k] = expand(current_workflow, v)

@@ -18,7 +18,7 @@
 # Do not modify this file directly!
 # !! WARNING !!
 #
-# It is generated from: ../../tests/workflows/ifexpands.yml
+# It is generated from: ../../tests/workflows/actions-ifexpands.yml
 # using the script from https://github.com/mithro/actions-includes@main
 
 on:
@@ -32,7 +32,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/test.ifexpands.yml
+        workflow: .github/workflows/test.actions-ifexpands.yml
     - id: wait
       name: Wait for Docker Image build
       uses: fountainhead/action-wait-for-check@v1.0.0
@@ -64,7 +64,7 @@ jobs:
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
-        workflow: .github/workflows/test.ifexpands.yml
+        workflow: .github/workflows/test.actions-ifexpands.yml
     - name: First step
       if: ${{ matrix.use-first }}
       run: |
