@@ -33,37 +33,37 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-    - includes: ./tests/include
+    - includes: ./tests/includes/actions/basic
       with:
         message: 'Hello World'
         use-first: ${{ matrix.use-first }}
 
-    - includes: ./tests/include
+    - includes: ./tests/includes/actions/basic
       with:
         message: 'Hello World'
         use-first: ${{ matrix.use-first }}
         use-last: ${{ matrix.use-first }}
 
-    - includes: ./tests/include
+    - includes: ./tests/includes/actions/basic
       with:
         message: 'Hello World'
         use-first: ${{ matrix.use-last }}
         use-last: ${{ matrix.use-last }}
 
-    - includes: ./tests/include
+    - includes: ./tests/includes/actions/basic
       with:
         message: 'Hello World'
         use-last: ${{ matrix.use-last }}
 
-    - includes: ./tests/include-multi
+    - includes: ./tests/includes/actions/complex-if
       with:
         use-a: ${{ matrix.use-first }}
         use-b: ${{ matrix.use-last }}
 
-    - includes: ./tests/include-multi
+    - includes: ./tests/includes/actions/complex-if
       with:
         use-a: ${{ matrix.use-first }}
 
-    - includes: ./tests/include-multi
+    - includes: ./tests/includes/actions/complex-if
       with:
         use-b: ${{ matrix.use-last }}

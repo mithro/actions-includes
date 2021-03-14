@@ -30,7 +30,7 @@ jobs:
     steps:
     - run: |
         echo "Pre-step"
-    - includes: ./tests/include
+    - includes: ./tests/includes/actions/basic
       with:
           message: 'Hello World'
           use-last: true
@@ -43,7 +43,7 @@ jobs:
     steps:
     - run: |
         echo "Pre-step"
-    - includes: ./tests/include
+    - includes: ./tests/includes/actions/basic
       with:
           message: 'Hello World'
           use-first: false
@@ -54,7 +54,7 @@ jobs:
     needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
-    - includes: ./tests/include
+    - includes: ./tests/includes/actions/basic
       with:
           message: 'Hello World'
 
@@ -62,14 +62,14 @@ jobs:
     needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
-    - includes: ./tests/recursive/local
+    - includes: ./tests/includes/actions/recursive/local
       with:
         use-first: true
         use-last: true
 
-    - includes: ./tests/recursive/local
+    - includes: ./tests/includes/actions/recursive/local
 
-    - includes: ./tests/recursive/local
+    - includes: ./tests/includes/actions/recursive/local
       with:
         use-first: false
         use-last: false
@@ -78,14 +78,14 @@ jobs:
     needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
-    - includes: ./tests/recursive/remote
+    - includes: ./tests/includes/actions/recursive/remote
       with:
         use-first: true
         use-last: true
 
-    - includes: ./tests/recursive/remote
+    - includes: ./tests/includes/actions/recursive/remote
 
-    - includes: ./tests/recursive/remote
+    - includes: ./tests/includes/actions/recursive/remote
       with:
         use-first: false
         use-last: false
@@ -94,19 +94,19 @@ jobs:
     needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
-    - includes: ./tests/include-script
+    - includes: ./tests/includes/actions/script
 
   test-recursive-remote-other:
     needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
-    - includes: ./tests/recursive/remote-other
+    - includes: ./tests/includes/actions/recursive/remote-other
 
   test-include-some1:
     needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
-    - includes: ./tests/include-some
+    - includes: ./tests/includes/actions/sometimes
       with:
         message: Hello everyone!
 
@@ -114,6 +114,6 @@ jobs:
     needs: docker-image-build
     runs-on: ubuntu-20.04
     steps:
-    - includes: ./tests/include-some
+    - includes: ./tests/includes/actions/sometimes
       with:
         message: Everyone!

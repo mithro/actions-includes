@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: includes-recursive-action
+name: tests-includes-actions-recursive-remote-other
 description: "Testing `includes:` can be used inside a `includes` action."
 
 inputs:

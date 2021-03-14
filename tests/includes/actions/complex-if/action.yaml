@@ -14,32 +14,24 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: includes-some
-description: "Basic action to be included in other tests."
+name: test-includes-actions-complex-if
+description: "Action to be included in other tests with complex if statement."
 
 inputs:
-  message:
-    description: 'Message to output'
+  use-a:
+    description: ''
     required: true
+    default: true
+  use-b:
+    description: 'Use the last step'
+    required: true
+    default: false
 
 runs:
   using: "includes"
 
   steps:
-  - name: Test
-    if: ${{ !startsWith(runner.os, 'Linux') }}
-    run: true
-
-  - name: Message not polite?
-    if: ${{ !startsWith(inputs.message, 'Hello') }}
+  - name: Step
+    if: inputs.use-a && inputs.use-b
     run: |
-        echo "No hello?"
-
-  - name: Output message
-    run: |
-        echo "${{ inputs.message }}"
-
-  - name: Be Polite
-    if: startsWith(inputs.message, 'Hello')
-    run: |
-        echo "Goodbye!"
+        echo "Hello world!"

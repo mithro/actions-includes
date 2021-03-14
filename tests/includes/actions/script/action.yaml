@@ -14,24 +14,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: includes-include-multi
-description: "Action to be included in other tests with complex if statement."
-
-inputs:
-  use-a:
-    description: ''
-    required: true
-    default: true
-  use-b:
-    description: 'Use the last step'
-    required: true
-    default: false
+name: tests-includes-actions-script
+description: "Basic includable action which uses includes-script."
 
 runs:
   using: "includes"
 
   steps:
-  - name: Step
-    if: inputs.use-a && inputs.use-b
-    run: |
-        echo "Hello world!"
+  - name: Included Python Script
+    includes-script: script.py
+
+  - name: Included Shell script
+    includes-script: script.sh

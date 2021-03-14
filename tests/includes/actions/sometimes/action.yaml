@@ -14,15 +14,32 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: include-script
-description: "Basic includable action which uses includes-script."
+name: tests-includes-actions-sometimes
+description: "Basic action to be included in other tests."
+
+inputs:
+  message:
+    description: 'Message to output'
+    required: true
 
 runs:
   using: "includes"
 
   steps:
-  - name: Included Python Script
-    includes-script: script.py
+  - name: Test
+    if: ${{ !startsWith(runner.os, 'Linux') }}
+    run: true
 
-  - name: Included Shell script
-    includes-script: script.sh
+  - name: Message not polite?
+    if: ${{ !startsWith(inputs.message, 'Hello') }}
+    run: |
+        echo "No hello?"
+
+  - name: Output message
+    run: |
+        echo "${{ inputs.message }}"
+
+  - name: Be Polite
+    if: startsWith(inputs.message, 'Hello')
+    run: |
+        echo "Goodbye!"

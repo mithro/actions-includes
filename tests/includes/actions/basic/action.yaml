@@ -1,0 +1,49 @@
+# Copyright 2021 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: tests-includes-action-basic
+description: "Basic action to be included in other tests."
+
+inputs:
+  use-first:
+    description: 'Use the first step'
+    required: true
+    default: true
+  use-last:
+    description: 'Use the last step'
+    required: true
+    default: false
+  message:
+    description: 'Message to use in the middle step'
+    required: true
+
+runs:
+  using: "includes"
+
+  steps:
+  - name: First step
+    if: inputs.use-first
+    run: |
+        echo "First step!"
+
+  - name: Middle step
+    run: |
+        echo "${{ inputs.message }}"
+
+  - name: Last step
+    if: inputs.use-last
+    run: |
+        echo "Last step!"

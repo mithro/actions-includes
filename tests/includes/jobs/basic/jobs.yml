@@ -14,39 +14,41 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: includes-recursive-local-action
-description: "Testing `includes:` pointing at local files can be used inside a `includes` action."
+name: includes-basic
+description: "Basic job to be included in other tests."
 
 inputs:
   use-first:
-    description: 'Use the first step'
+    description: 'Use the first job'
     required: true
     default: true
   use-last:
-    description: 'Use the last step'
+    description: 'Use the last job'
     required: true
     default: false
+  message:
+    description: 'Message to use in the middle step'
+    required: true
 
-runs:
-  using: "includes"
-
-  steps:
-  - includes: ./tests/include
+jobs:
+  FirstJob:
     if: inputs.use-first
-    with:
-        message: 'First step'
-        use-first: false
-        use-last: false
+    runs-on: ubuntu-20.04
+    steps:
+    - name: First step
+      run: |
+          echo "First job"
 
-  - includes: ./tests/include
-    with:
-        message: 'Middle step'
-        use-first: ${{ inputs.use-first }}
-        use-last: ${{ inputs.use-last }}
+  MiddleJob:
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Middle step
+      run: |
+          echo "${{ inputs.message }}"
 
-  - includes: ./tests/include
+  LastJob:
     if: inputs.use-last
-    with:
-        message: 'Last step'
-        use-first: false
-        use-last: false
+    runs-on: ubuntu-20.04
+    - name: Last step
+      run: |
+          echo "Last job!"
