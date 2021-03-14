@@ -27,6 +27,10 @@ import subprocess
 import tempfile
 import yaml
 
+from collections import defaultdict
+
+from yaml.constructor import FullConstructor
+
 from pprint import pprint as p
 
 from . import expressions as exp
@@ -71,6 +75,43 @@ def get_action_data(current_action, action_name):
 
     printerr("Including:", action_filepath)
     yaml_data = yaml_load_and_expand(action_filepath, data)
+    assert 'runs' in yaml_data, (type(yaml_data), yaml_data)
+    assert yaml_data['runs'].get(
+        'using', None) == 'includes', pprint.pformat(yaml_data)
+    return yaml_data
+
+
+JOBS_YAML_NAMES = [
+    '/jobs.yml',
+    '/jobs.yaml',
+]
+
+
+def get_jobs_data(current_workflow, jobs_name):
+    jobs_dirpath = get_filepath(current_workflow, jobs_name)
+    printerr("get_jobs_data:", current_workflow, jobs_name, jobs_dirpath)
+
+    errors = {}
+    for f in JOBS_YAML_NAMES:
+        jobs_filepath = jobs_dirpath._replace(path=str(jobs_dirpath.path)+f)
+
+        data = get_filepath_data(jobs_filepath)
+
+        errors[jobs_filepath] = data
+        if isinstance(data, str):
+            break
+    else:
+        raise IOError(
+            '\n'.join([
+                    'Did not find {} (in {}), errors:'.format(
+                        jobs_name, current_workflow),
+                ] + [
+                    '  {}: {}'.format(k, str(v))
+                    for k, v in sorted(errors.items())
+                ]))
+
+    printerr("Including:", jobs_filepath)
+    yaml_data = yaml_load_and_expand(jobs_filepath, data)
     assert 'runs' in yaml_data, pprint.pformat(yaml_data)
     assert yaml_data['runs'].get(
         'using', None) == 'includes', pprint.pformat(yaml_data)
@@ -91,17 +132,17 @@ def simplify_expressions(yaml_item, context):
     >>> simplify_expressions('${{ hello }}-${{ world }}', {'hello': 'world'})
     'world-${{ world }}'
 
-    >>> step = {
+    >>> step = YamlMap({
     ...     'if': "startswith(inputs.os, 'ubuntu')",
     ...     'name': '🚧 Build distribution 📦',
     ...     'uses': 'RalfG/python-wheels-manylinux-build@v0.3.3-manylinux2010_x86_64',
     ...     'str': '${{ inputs.empty }}',
-    ...     'with': {
+    ...     'with': YamlMap({
     ...         'build-requirements': 'cython',
     ...         'pre-build-command': 'bash ',
     ...         'python-versions': '${{ manylinux-versions[inputs.python-version] }}'
-    ...     }
-    ... }
+    ...     }.items()),
+    ... }.items())
     >>> inputs = {
     ...     'os': exp.Lookup('matrix', 'os'),
     ...     'python-version': exp.Lookup('matrix', 'python-version'),
@@ -112,16 +153,17 @@ def simplify_expressions(yaml_item, context):
     >>> p(simplify_expressions(step, {'inputs': inputs, 'manylinux-versions': {'blah'}}))
     {'if': "startswith(inputs.os, 'ubuntu')",
      'name': '🚧 Build distribution 📦',
-     'str': '',
      'uses': 'RalfG/python-wheels-manylinux-build@v0.3.3-manylinux2010_x86_64',
+     'str': '',
      'with': {'build-requirements': 'cython',
               'pre-build-command': 'bash ',
               'python-versions': Lookup('manylinux-versions', Lookup('matrix', 'python-version'))}}
 
     """
-    if isinstance(yaml_item, dict):
-        for k in list(yaml_item.keys()):
-            yaml_item[k] = simplify_expressions(yaml_item[k], context)
+    assert not isinstance(yaml_item, dict), (type(yaml_item), yaml_item)
+    if isinstance(yaml_item, YamlMap):
+        for k, v in list(yaml_item.items()):
+            yaml_item.replace(k, simplify_expressions(v, context))
     elif isinstance(yaml_item, list):
         for i in range(0, len(yaml_item)):
             yaml_item[i] = simplify_expressions(yaml_item[i], context)
@@ -149,24 +191,26 @@ def simplify_expressions(yaml_item, context):
     return yaml_item
 
 
-def step_type(v):
-    if 'run' in v:
+def step_type(m):
+    assert isinstance(m, YamlMap), m
+    if 'run' in m:
         return 'run'
-    elif 'uses' in v:
+    elif 'uses' in m:
         return 'uses'
-    elif 'includes' in v:
+    elif 'includes' in m:
         return 'includes'
-    elif 'includes-script' in v:
+    elif 'includes-script' in m:
         return 'includes-script'
     else:
-        raise ValueError('Unknown step type:\n' + pprint.pformat(v))
+        raise ValueError('Unknown step type:\n' + pprint.pformat(m))
 
 
-def popout_if(d):
+def pop_if_exp(d):
     if 'if' not in d:
         return True
 
     v = d['if']
+    d.replace('if', None)
     if isinstance(v, exp.Expression):
         return v
     if not isinstance(v, str):
@@ -182,7 +226,7 @@ def popout_if(d):
 def expand_step_includes(current_action, out_list, include_step):
     assert step_type(include_step) == 'includes', (current_action, out_list, include_step)
 
-    include_if = popout_if(include_step)
+    include_if = pop_if_exp(include_step)
 
     include_yamldata = get_action_data(current_action, include_step['includes'])
 
@@ -205,7 +249,7 @@ def expand_step_includes(current_action, out_list, include_step):
 
         inputs[in_name] = exp.parse(v)
 
-    context = copy.deepcopy(include_yamldata)
+    context = dict(include_yamldata)
     context['inputs'] = inputs
     printdbg('\nInclude Step:\n', pprint.pformat(include_step))
     printdbg('Inputs:\n', pprint.pformat(inputs))
@@ -218,7 +262,7 @@ def expand_step_includes(current_action, out_list, include_step):
     steps = include_yamldata['runs']['steps']
     while len(steps) > 0:
         step = steps.pop(0)
-        step_if = popout_if(step)
+        step_if = pop_if_exp(step)
         printdbg('\nStep:', include_step['includes']+'#'+str(len(out_list)))
         printdbg('Inputs:\n', pprint.pformat(inputs))
         printdbg('Before:\n', pprint.pformat(step))
@@ -231,7 +275,7 @@ def expand_step_includes(current_action, out_list, include_step):
         printdbg('\n', end='')
 
         if isinstance(current_if, exp.Expression):
-            step['if'] = current_if
+            step.replace('if', current_if, allow_missing=True)
         elif current_if in (False, None, ''):
             continue
         else:
@@ -311,29 +355,285 @@ def expand_list(current_action, yaml_list):
     return yaml_list
 
 
-def expand_dict(current_action, yaml_dict):
-    for k, v in list(yaml_dict.items()):
-        if k == 'steps':
-            yaml_dict[k] = expand_steps_list(current_action, v)
+def expand_jobs_includes(current_workflow, include_jobs):
+    include_yamldata = get_jobs_data(current_workflow, include_jobs['includes'])
+    assert 'jobs' in include_yamldata, pprint.pformat(include_yamldata)
+
+    # Calculate the inputs dictionary
+    if 'inputs' not in include_yamldata:
+        include_yamldata['inputs'] = {}
+
+    with_data = include_jobs.get('with', {})
+
+    inputs = {}
+    for in_name, in_info in include_yamldata['inputs'].items():
+        v = None
+        if 'default' in in_info:
+            v = in_info['default']
+        if in_name in with_data:
+            v = with_data[in_name]
+
+        if in_info.get('required', False):
+            assert v is not None, (in_name, in_info, with_data)
+
+        inputs[in_name] = exp.parse(v)
+
+    context = copy.deepcopy(include_yamldata)
+    context['inputs'] = inputs
+    printdbg('\nInclude Jobs:\n', pprint.pformat(include_jobs))
+    printdbg('Inputs:\n', pprint.pformat(inputs))
+    printdbg('\n')
+
+    assert 'runs' in include_yamldata, include_yamldata
+    assert 'jobss' in include_yamldata['runs'], include_yamldata['jobss']
+
+    new_dict = {}
+    for i, jobname in enumerate(include_yamldata['jobs']):
+        job_dict = include_yamldata['jobs'][jobname]
+        jobs_if = pop_if_exp(jobs)
+
+        printdbg('\nJob:', include_jobs['includes']+f'#{i} - {jobname}')
+        printdbg('Inputs:\n', pprint.pformat(inputs))
+        printdbg('Before:\n', pprint.pformat(jobs_map))
+        printdbg('Before Job If:', repr(jobs_if))
+        jobs_out_map = simplify_expressions(jobs_map, context)
+        printdbg('---')
+        current_if = exp.simplify(jobs_if, context)
+        printdbg('After:\n', pprint.pformat(jobs_out_map))
+        printdbg('After If:', repr(current_if))
+        printdbg('\n', end='')
+
+        if isinstance(current_if, exp.Expression):
+            jobs['if'] = current_if
+        elif current_if in (False, None, ''):
+            continue
         else:
-            yaml_dict[k] = expand(current_action, v)
-    return yaml_dict
+            assert current_if is True, (current_if, repr(current_if))
+            if 'if' in jobs:
+                del jobs['if']
+
+        out_map.append(jobname, job_out_map)
+
+
+def expand_jobs_map(current_workflow, yaml_map):
+    yaml_map_out = YamlMap()
+    for k, v in yaml_map.items():
+        assert isinstance(v, YamlMap), pprint.pformat((k, v))
+        if k == 'includes':
+            for jobname, jobinfo in expand_jobs_includes(current_workflow, v):
+                yaml_map_out[jobname] = jobinfo
+        else:
+            yaml_map_out[k] = expand(current_workflow, v)
+    return yaml_map_out
+
+
+def expand_yamlmap(current_action, yaml_map):
+    #print('expand_yamlmap', current_action, yaml_map)
+    yaml_map_out = YamlMap()
+    for k, v in yaml_map.items():
+        if k == 'steps':
+            yaml_map_out[k] = expand_steps_list(current_action, v)
+        elif k == 'jobs':
+            yaml_map_out[k] = expand_jobs_map(current_action, v)
+        else:
+            yaml_map_out[k] = expand(current_action, v)
+    return yaml_map_out
 
 
 def expand(current_action, yaml_item):
-    if isinstance(yaml_item, dict):
-        return expand_dict(current_action, yaml_item)
+    assert not isinstance(yaml_item, dict), (type(yaml_item), yaml_item)
+    if isinstance(yaml_item, YamlMap):
+        return expand_yamlmap(current_action, yaml_item)
     elif isinstance(yaml_item, list):
         return expand_list(current_action, yaml_item)
     else:
         return yaml_item
 
+# ==============================================================
+# PyYaml Loader / Dumper Customization
+# ==============================================================
 
-def yaml_load_and_expand(current_action, yaml_data):
-    md5sum = hashlib.md5(yaml_data.encode('utf-8')).hexdigest()
-    printerr(f'Loading yaml file {current_action} with contents md5 of {md5sum}')
-    return expand(current_action, yaml.load(
-        yaml_data, Loader=yaml.FullLoader))
+
+
+class YamlMap:
+
+    """
+
+    >>> y = YamlMap()
+    >>> '1' in y
+    False
+    >>> y['1'] = 1
+    >>> '1' in y
+    True
+    >>> y['1']
+    1
+    >>> y['1'] = 2
+    >>> '1' in y
+    True
+    >>> y['1']
+    Traceback (most recent call last):
+      ...
+    actions_includes.YamlMap.MultiKeyError: 'Multi key: 1 == [1, 2]'
+    >>> y['2'] = 3
+    >>> y['1'] = 4
+    >>> list(y.items())
+    [('1', 1), ('1', 2), ('2', 3), ('1', 4)]
+
+    >>> del y['1']
+    >>> list(y.items())
+    [('2', 3)]
+
+    >>> y['3'] = 4
+    >>> y.replace('2', 5)
+    >>> list(y.items())
+    [('2', 5), ('3', 4)]
+
+    """
+    _MARKER = []
+
+    class MultiKeyError(KeyError):
+        pass
+
+    def __init__(self, d=None):
+        self.__i = 0
+        self._keys = defaultdict(list)
+        self._values = {}
+        self._order = []
+        if d:
+            if hasattr(d, 'items'):
+                d = d.items()
+            for k, v in d:
+                self[k] = v
+
+    def __getitem__(self, k):
+        if k not in self._keys:
+            raise KeyError(f'No such key: {k}')
+        r = [self._values[i] for i in self._keys[k]]
+        if len(r) == 1:
+            return r[0]
+        raise self.MultiKeyError(f'Multi key: {k} == {r}')
+
+    def __setitem__(self, k, v):
+        self.__i += 1
+        assert self.__i not in self._values
+        assert self.__i not in self._order
+        self._keys[k].append(self.__i)
+        self._values[self.__i] = v
+        self._order.append((self.__i, k))
+
+    def replace(self, k, v, allow_missing=False):
+        if k not in self._keys:
+            if not allow_missing:
+                raise KeyError(f'No such key: {k}')
+            else:
+                self[k] = None
+        i = self._keys[k]
+        if len(i) > 1:
+            raise self.MultiKeyError(f'Multi key: {k} == {i}')
+        self._values[i[0]] = v
+
+    def __delitem__(self, k):
+        if k not in self._keys:
+            raise KeyError(f'No such key: {k}')
+        to_remove = self._keys[k]
+        for i in to_remove:
+            del self._values[i]
+            self._order.remove((i, k))
+        del self._keys[k]
+
+    def get(self, k, default=_MARKER):
+        try:
+            return self[k]
+        except KeyError:
+            if default is not self._MARKER:
+                return default
+            raise
+
+    def __contains__(self, k):
+        return k in self._keys
+
+    class map_items:
+        def __init__(self, m):
+            self.m = m
+
+        def __iter__(self):
+            for i, k in self.m._order:
+                v = self.m._values[i]
+                yield (k, v)
+
+        def __len__(self):
+            return len(self.m)
+
+    def items(self):
+        return self.map_items(self)
+
+    class map_keys:
+        def __init__(self, m):
+            self.m = m
+
+        def __iter__(self):
+            for i, k in self.m._order:
+                yield k
+
+        def __len__(self):
+            return len(self.m)
+
+    def keys(self):
+        return self.map_keys(self)
+
+    class map_values:
+        def __init__(self, m):
+            self.m = m
+
+        def __iter__(self):
+            for i, _ in self.m._order:
+                yield self.m._values[i]
+
+        def __len__(self):
+            return len(self.m)
+
+    def values(self):
+        return self.map_values(self)
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __len__(self):
+        return len(self._order)
+
+    def __repr__(self):
+        return repr(list(self.items()))
+
+    def pop(self, k):
+        v = self[k]
+        del self[k]
+        return v
+
+    @staticmethod
+    def presenter(dumper, data):
+        return dumper.represent_mapping('tag:yaml.org,2002:map', data)
+
+    @staticmethod
+    def _pprint(p, object, stream, indent, allowance, context, level):
+        _sort_dicts = p._sort_dicts
+        p._sort_dicts = False
+        p._pprint_dict(object, stream, indent, allowance, context, level)
+        p._sort_dicts = _sort_dicts
+
+
+pprint.PrettyPrinter._dispatch[YamlMap.__repr__] = YamlMap._pprint
+
+
+def construct_yaml_map(self, node):
+    data = YamlMap()
+    yield data
+    for key_node, value_node in node.value:
+        key = self.construct_object(key_node, deep=True)
+        val = self.construct_object(value_node, deep=True)
+        data[key] = val
+
+
+FullConstructor.add_constructor(u'tag:yaml.org,2002:map', construct_yaml_map)
 
 
 def str_presenter(dumper, data):
@@ -366,6 +666,16 @@ yaml.add_multi_representer(exp.Expression, exp_presenter)
 yaml.add_representer(str, str_presenter)
 yaml.add_representer(None.__class__, none_presenter)
 yaml.add_representer(On, On.presenter)
+yaml.add_representer(YamlMap, YamlMap.presenter)
+
+# ==============================================================
+
+
+def yaml_load_and_expand(current_action, yaml_data):
+    md5sum = hashlib.md5(yaml_data.encode('utf-8')).hexdigest()
+    printerr(f'Loading yaml file {current_action} with contents md5 of {md5sum}')
+    return expand(current_action, yaml.load(
+        yaml_data, Loader=yaml.FullLoader))
 
 
 def expand_workflow(current_workflow, to_path):
