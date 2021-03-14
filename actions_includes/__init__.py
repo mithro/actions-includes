@@ -297,10 +297,10 @@ def expand_steps_list(current_action, yaml_list):
     out_list = []
     for i, v in list(enumerate(yaml_list)):
         {
-                'run': expand_step_run,
-                'uses': expand_step_uses,
-                'includes': expand_step_includes,
-                'includes-script': expand_step_includes_script,
+            'run': expand_step_run,
+            'uses': expand_step_uses,
+            'includes': expand_step_includes,
+            'includes-script': expand_step_includes_script,
         }[step_type(v)](current_action, out_list, v)
     return out_list
 
