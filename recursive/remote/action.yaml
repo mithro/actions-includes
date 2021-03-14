@@ -31,20 +31,20 @@ runs:
   using: "includes"
 
   steps:
-  - includes: mithro/actions-includes/tests/include@main
+  - includes: mithro/actions-includes/tests/includes/actions/basic@main
     if: inputs.use-first
     with:
         message: 'First step'
         use-first: false
         use-last: false
 
-  - includes: mithro/actions-includes/tests/include@main
+  - includes: mithro/actions-includes/tests/includes/actions/basic@main
     with:
         message: 'Middle step'
         use-first: ${{ inputs.use-first }}
         use-last: ${{ inputs.use-last }}
 
-  - includes: mithro/actions-includes/tests/include@main
+  - includes: mithro/actions-includes/tests/includes/actions/basic@main
     if: inputs.use-last
     with:
         message: 'Last step'
