@@ -359,6 +359,10 @@ def expand_jobs_includes(current_workflow, ojobname, include_jobs):
     include_yamldata = get_workflow_data(current_workflow, include_jobs['includes'])
     assert 'jobs' in include_yamldata, pprint.pformat(include_yamldata)
 
+    ojob_needs = include_jobs.get('needs', [])
+    if not isinstance(ojob_needs, list):
+        ojob_needs = [ojob_needs]
+
     # Calculate the inputs dictionary
     if 'inputs' not in include_yamldata:
         include_yamldata['inputs'] = {}
@@ -400,14 +404,21 @@ def expand_jobs_includes(current_workflow, ojobname, include_jobs):
         printdbg('After If:', repr(current_if))
         printdbg('\n', end='')
 
+        new_needs = list(ojob_needs)
         if 'needs' in jobs_map:
-            needs = jobs_map['needs']
-            if isinstance(needs, list):
-                jobs_map.replace('needs', [ojobname+i for i in needs])
-            elif isinstance(needs, str):
-                jobs_map.replace('needs', ojobname+needs)
+            job_needs = jobs_map['needs']
+            if isinstance(job_needs, list):
+                for i in job_needs:
+                    new_needs.append(ojobname+i)
+            elif isinstance(job_needs, str):
+                new_needs.append(ojobname+job_needs)
             else:
-                assert False, (needs, jobs_map)
+                assert False, (job_needs, jobs_map)
+
+        if len(new_needs) > 1:
+            jobs_map.replace('needs', new_needs, allow_missing=True)
+        elif len(new_needs) == 1:
+            jobs_map.replace('needs', new_needs[0], allow_missing=True)
 
         if isinstance(current_if, exp.Expression):
             jobs_map_out['if'] = current_if
@@ -420,7 +431,7 @@ def expand_jobs_includes(current_workflow, ojobname, include_jobs):
 
         new_jobs.append((ojobname+jobname, jobs_map_out))
 
-    jobnames = [n for n, m in new_jobs]
+    jobnames = [n for n, m in new_jobs]+ojob_needs
     for n, job_map in new_jobs:
         if 'needs' not in job_map:
             continue
@@ -428,7 +439,7 @@ def expand_jobs_includes(current_workflow, ojobname, include_jobs):
         if isinstance(needs, str):
             needs = [needs]
         for j in needs:
-            assert j in jobnames, (j, jobnames)
+            assert j in jobnames or j in ojob_needs, (j, jobnames)
 
     return new_jobs
 

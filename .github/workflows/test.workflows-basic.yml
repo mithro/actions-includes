@@ -25,6 +25,29 @@ on:
   push:
   pull_request:
 jobs:
+  docker-image-build:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: mithro/actions-includes@main
+      if: runner.os == 'Linux'
+      continue-on-error: false
+      with:
+        workflow: .github/workflows/test.workflows-basic.yml
+    - id: wait
+      name: Wait for Docker Image build
+      uses: fountainhead/action-wait-for-check@v1.0.0
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        checkName: Push Docker image to GitHub Packages
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    - name: Docker Image Check
+      env:
+        STATUS: ${{ steps.wait.outputs.conclusion }}
+      run: |
+        if [[ "$STATUS" != "success" ]]; then
+          echo "::error {{ $STATUS }}"
+          exit 1
+        fi
   FirstFirstJob1:
     runs-on: ubuntu-20.04
     steps:
@@ -36,6 +59,7 @@ jobs:
     - name: First step
       run: |
         echo "First job"
+    needs: docker-image-build
   FirstFirstJob2:
     runs-on: ubuntu-20.04
     steps:
@@ -47,9 +71,12 @@ jobs:
     - name: First step
       run: |
         echo "First job"
+    needs: docker-image-build
   FirstMiddleJob:
     runs-on: ubuntu-20.04
-    needs: FirstFirstJob1
+    needs:
+    - docker-image-build
+    - FirstFirstJob1
     steps:
     - uses: mithro/actions-includes@main
       if: runner.os == 'Linux'
@@ -70,9 +97,12 @@ jobs:
     - name: First step
       run: |
         echo "First job"
+    needs: docker-image-build
   SecondMiddleJob:
     runs-on: ubuntu-20.04
-    needs: SecondFirstJob1
+    needs:
+    - docker-image-build
+    - SecondFirstJob1
     steps:
     - uses: mithro/actions-includes@main
       if: runner.os == 'Linux'
@@ -85,6 +115,7 @@ jobs:
   SecondLastJob:
     runs-on: ubuntu-20.04
     needs:
+    - docker-image-build
     - SecondFirstJob1
     - SecondMiddleJob
     steps:
@@ -107,6 +138,7 @@ jobs:
     - name: First step
       run: |
         echo "First job"
+    needs: docker-image-build
   FirstJob2:
     runs-on: ubuntu-20.04
     steps:
@@ -118,9 +150,12 @@ jobs:
     - name: First step
       run: |
         echo "First job"
+    needs: docker-image-build
   MiddleJob:
     runs-on: ubuntu-20.04
-    needs: FirstJob1
+    needs:
+    - docker-image-build
+    - FirstJob1
     steps:
     - uses: mithro/actions-includes@main
       if: runner.os == 'Linux'
@@ -133,6 +168,7 @@ jobs:
   LastJob:
     runs-on: ubuntu-20.04
     needs:
+    - docker-image-build
     - FirstJob1
     - MiddleJob
     steps:

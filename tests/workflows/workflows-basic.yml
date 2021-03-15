@@ -19,14 +19,21 @@ on:
   pull_request:
 
 jobs:
+  docker-image-build:
+    runs-on: ubuntu-20.04
+    steps:
+    - includes: /wait-on-docker-image
+
   First:
     includes: ./tests/includes/workflows/basic
+    needs: docker-image-build
     with:
       message: 'Hello World'
       use-first: true
 
   Second:
     includes: ./tests/includes/workflows/basic
+    needs: docker-image-build
     with:
       message: 'Hello World'
       use-first: false
@@ -34,6 +41,7 @@ jobs:
 
   null:
     includes: ./tests/includes/workflows/basic
+    needs: docker-image-build
     with:
       message: 'Hello World'
       use-first: true
