@@ -17,6 +17,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+import collections.abc
 import json
 import re
 
@@ -127,6 +128,9 @@ def swizzle(l):
             b = l[1]
             c = swizzle(l[2:])
 
+            assert isinstance(b, collections.abc.Hashable), \
+                "Unhashable object: {} (type: {}) from {!r}".format(b, type(b), l)
+
             if b in INFIX_FUNCTIONS:
                 return (INFIX_FUNCTIONS[b], a, c)
         if len(l) == 1:
@@ -152,6 +156,10 @@ def tokenizer(s):
     >>> p(tokenizer("inputs.use-me"))
     Lookup('inputs', 'use-me')
 
+    >>> p(tokenizer("!startsWith(runner.os, 'Linux')"))
+    (<class 'exp.NotF'>,
+     (<class 'exp.StartsWithF'>, Lookup('runner', 'os'), 'Linux'))
+
     >>> p(tokenizer("!startsWith(matrix.os, 'ubuntu') && (true && null && startsWith('ubuntu-latest', 'ubuntu'))"))
     (<class 'exp.AndF'>,
      (<class 'exp.NotF'>,
@@ -176,54 +184,57 @@ def tokenizer(s):
     Lookup('manylinux-versions', Lookup('inputs', 'python-version'))
 
     """
-    tree = []
-    def split(s):
-        i = 0
-        while True:
-            try:
-                m = BITS.search(s, i)
-            except TypeError as e:
-                print(BITS, repr(s), i)
-                raise
+    try:
+        tree = []
+        def split(s):
+            i = 0
+            while True:
+                try:
+                    m = BITS.search(s, i)
+                except TypeError as e:
+                    print(BITS, repr(s), i)
+                    raise
 
-            if not m:
-                b = s[i:].strip()
-            else:
-                b = s[i:m.start(0)].strip()
-            if b:
-                for i in b:
-                    if not i.strip():
-                        continue
-                    yield i
+                if not m:
+                    b = s[i:].strip()
+                else:
+                    b = s[i:m.start(0)].strip()
+                if b:
+                    for i in b:
+                        if not i.strip():
+                            continue
+                        yield i
 
-            if not m:
-                return
-            yield from_literal(m.group(0))
-            i = m.end(0)
+                if not m:
+                    return
+                yield from_literal(m.group(0))
+                i = m.end(0)
 
-    stack = [[]]
-    for i in split(s):
-        if i == '(':
-            stack.append([])
-            continue
-        elif i == ')':
-            i = swizzle(stack.pop(-1))
-        if stack[-1]:
-            l = stack[-1][-1]
-            if str(l)+str(i) in INFIX_FUNCTIONS:
-                stack[-1][-1] += i
+        stack = [[]]
+        for i in split(s):
+            if i == '(':
+                stack.append([])
                 continue
-            elif isinstance(l, type) and issubclass(l, BinFunction):
-                assert len(i) == 3, (l, i)
-                assert i[1] == ',', (l, i)
-                #r = l(i[0], i[2])
-                #print('Eval: {}({}, {}) = {}'.format(l, i[0], i[2], r))
-                stack[-1][-1] = (l, i[0], i[2])
-                continue
-        stack[-1].append(i)
+            elif i == ')':
+                    i = swizzle(stack.pop(-1))
+            if stack[-1]:
+                l = stack[-1][-1]
+                if str(l)+str(i) in INFIX_FUNCTIONS:
+                    stack[-1][-1] += i
+                    continue
+                elif isinstance(l, type) and issubclass(l, BinFunction):
+                    assert len(i) == 3, (l, i)
+                    assert i[1] == ',', (l, i)
+                    #r = l(i[0], i[2])
+                    #print('Eval: {}({}, {}) = {}'.format(l, i[0], i[2], r))
+                    stack[-1][-1] = (l, i[0], i[2])
+                    continue
+            stack[-1].append(i)
 
-    assert len(stack) == 1, stack
-    return swizzle(stack[0])
+        assert len(stack) == 1, stack
+        return swizzle(stack[0])
+    except Exception as e:
+        raise TypeError('Error while parsing: {!r}'.format(s)) from e
 
 
 
