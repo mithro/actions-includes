@@ -25,11 +25,16 @@ import pprint
 import re
 import subprocess
 import tempfile
-import yaml
 
 from collections import defaultdict
 
-from yaml.constructor import FullConstructor
+from ruamel import yaml
+from ruamel.yaml import resolver
+from ruamel.yaml import util
+from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.constructor import RoundTripConstructor
+from ruamel.yaml.nodes import MappingNode
+from ruamel.yaml.scalarstring import PlainScalarString
 
 from pprint import pprint as p
 
@@ -43,6 +48,9 @@ from .output import printerr, printdbg
 MARKER = "It is generated from: "
 INCLUDE_ACTION_NAME = 'mithro/actions-includes@main'
 
+# -----------------------------------------------------------------------------
+# Get Data
+# -----------------------------------------------------------------------------
 
 ACTION_YAML_NAMES = [
     '/action.yml',
@@ -51,7 +59,7 @@ ACTION_YAML_NAMES = [
 
 
 def get_action_data(current_action, action_name):
-    action_dirpath = get_filepath(current_action, action_name)
+    action_dirpath = get_filepath(current_action, action_name, 'action')
     printerr("get_action_data:", current_action, action_name, action_dirpath)
 
     errors = {}
@@ -74,11 +82,11 @@ def get_action_data(current_action, action_name):
                 ]))
 
     printerr("Including:", action_filepath)
-    yaml_data = yaml_load_and_expand(action_filepath, data)
+    yaml_data = yaml_load(action_filepath, data)
     assert 'runs' in yaml_data, (type(yaml_data), yaml_data)
     assert yaml_data['runs'].get(
         'using', None) == 'includes', pprint.pformat(yaml_data)
-    return yaml_data
+    return action_filepath, yaml_data
 
 
 JOBS_YAML_NAMES = [
@@ -88,7 +96,7 @@ JOBS_YAML_NAMES = [
 
 
 def get_workflow_data(current_workflow, jobs_name):
-    jobs_dirpath = get_filepath(current_workflow, jobs_name)
+    jobs_dirpath = get_filepath(current_workflow, jobs_name, 'workflow')
     printerr("get_workflow_data:", current_workflow, jobs_name, jobs_dirpath)
 
     errors = {}
@@ -111,36 +119,40 @@ def get_workflow_data(current_workflow, jobs_name):
                 ]))
 
     printerr("Including:", jobs_filepath)
-    yaml_data = yaml_load_and_expand(jobs_filepath, data)
+    yaml_data = yaml_load(jobs_filepath, data)
     assert 'jobs' in yaml_data, pprint.pformat(yaml_data)
-    return yaml_data
+    return jobs_filepath, yaml_data
+
+
+
+# -----------------------------------------------------------------------------
 
 
 RE_EXP = re.compile('\\${{(.*?)}}', re.DOTALL)
 
 
-def simplify_expressions(yaml_item, context):
+def expand_input_expressions(yaml_item, context):
     """
 
-    >>> simplify_expressions('${{ hello }}', {'hello': 'world'})
+    >>> expand_input_expressions('${{ hello }}', {'hello': 'world'})
     'world'
-    >>> simplify_expressions(exp.Value('hello'), {'hello': 'world'})
+    >>> expand_input_expressions(exp.Value('hello'), {'hello': 'world'})
     'world'
 
-    >>> simplify_expressions('${{ hello }}-${{ world }}', {'hello': 'world'})
+    >>> expand_input_expressions('${{ hello }}-${{ world }}', {'hello': 'world'})
     'world-${{ world }}'
 
-    >>> step = YamlMap({
+    >>> step = {
     ...     'if': "startswith(inputs.os, 'ubuntu')",
     ...     'name': '🚧 Build distribution 📦',
     ...     'uses': 'RalfG/python-wheels-manylinux-build@v0.3.3-manylinux2010_x86_64',
     ...     'str': '${{ inputs.empty }}',
-    ...     'with': YamlMap({
+    ...     'with': {
     ...         'build-requirements': 'cython',
     ...         'pre-build-command': 'bash ',
     ...         'python-versions': '${{ manylinux-versions[inputs.python-version] }}'
-    ...     }.items()),
-    ... }.items())
+    ...     },
+    ... }
     >>> inputs = {
     ...     'os': exp.Lookup('matrix', 'os'),
     ...     'python-version': exp.Lookup('matrix', 'python-version'),
@@ -148,25 +160,93 @@ def simplify_expressions(yaml_item, context):
     ...     'root_user': 'SymbiFlow',
     ...     'empty': '',
     ... }
-    >>> p(simplify_expressions(step, {'inputs': inputs, 'manylinux-versions': {'blah'}}))
+    >>> p(expand_input_expressions(step, {'inputs': inputs, 'manylinux-versions': {'blah'}}))
     {'if': "startswith(inputs.os, 'ubuntu')",
      'name': '🚧 Build distribution 📦',
-     'uses': 'RalfG/python-wheels-manylinux-build@v0.3.3-manylinux2010_x86_64',
      'str': '',
+     'uses': 'RalfG/python-wheels-manylinux-build@v0.3.3-manylinux2010_x86_64',
      'with': {'build-requirements': 'cython',
               'pre-build-command': 'bash ',
               'python-versions': Lookup('manylinux-versions', Lookup('matrix', 'python-version'))}}
 
+    >>> step = CommentedMap({'f': exp.Lookup('a', 'b')})
+    >>> list(step.items())
+    [('f', Lookup('a', 'b'))]
+    >>> step = expand_input_expressions(step, {'a': {'b': 'c'}})
+    >>> list(step.items())
+    [('f', 'c')]
+
+    >>> ref1 = CommentedMap({'a': 'b'})
+    >>> ref2 = CommentedMap({'a': 'c', 'd': 'e'})
+    >>> step = CommentedMap({'f': 'g'})
+    >>> step.add_yaml_merge([(0, ref1)])
+    >>> step.add_yaml_merge([(1, ref2)])
+    >>> list(step.non_merged_items())
+    [('f', 'g')]
+    >>> list(step.items())
+    [('f', 'g'), ('a', 'b'), ('d', 'e')]
+
+    >>> ref1 = CommentedMapExpression(exp.Value('hello'))
+    >>> step = CommentedMap({'f': 'g'})
+    >>> step.add_yaml_merge([(0, ref1)])
+    >>> list(step.items())
+    [('f', 'g')]
+    >>> step = expand_input_expressions(step, {'hello': yaml.comments.CommentedMap({'a': 'b'})})
+    >>> list(step.items())
+    [('f', 'g'), ('a', 'b')]
+
+    >>> ref1 = CommentedMapExpression(exp.Lookup('a', 'b'))
+    >>> step = CommentedMap({'f': 'g'})
+    >>> step.add_yaml_merge([(0, ref1)])
+    >>> list(step.items())
+    [('f', 'g')]
+    >>> step = expand_input_expressions(step, {'a': {'b': yaml.comments.CommentedMap({'c': 'd'})}})
+    >>> list(step.items())
+    [('f', 'g'), ('c', 'd')]
+
     """
-    assert not isinstance(yaml_item, dict), (type(yaml_item), yaml_item)
-    if isinstance(yaml_item, YamlMap):
+    marker = []
+    new_yaml_item = marker
+    if isinstance(yaml_item, CommentedMapExpression):
+        if yaml_item.exp_value is not None:
+            assert isinstance(yaml_item.exp_value, exp.Expression), yaml_item.node
+
+            new_value = expand_input_expressions(yaml_item.exp_value, context)
+            if isinstance(new_value, exp.Expression):
+                new_yaml_item = CommentedMapExpression()
+                new_yaml_item.node = MapExpressionNode('tag:github.com,2020:expression', new_value)
+                return new_yaml_item
+
+            assert isinstance(new_value, dict), (new_value, yaml_item.exp_value, context)
+            yaml_item = yaml.comments.CommentedMap(new_value)
+
+    if isinstance(yaml_item, yaml.comments.CommentedMap):
+        new_merge_attrib = []
+        for name, mapping in getattr(yaml_item, yaml.comments.merge_attrib, []):
+            new_mapping = expand_input_expressions(mapping, context)
+            assert isinstance(new_mapping, yaml.comments.CommentedMap), (type(new_mapping), pprint.pformat(new_mapping))
+            new_merge_attrib.append((name, new_mapping))
+
+        new_yaml_item = yaml.comments.CommentedMap()
+        yaml_item.copy_attributes(new_yaml_item)
+        setattr(new_yaml_item, yaml.comments.merge_attrib, [])
+
+        for k, v in yaml_item.non_merged_items():
+            new_yaml_item[k] = expand_input_expressions(v, context)
+
+        if new_merge_attrib:
+            new_yaml_item.add_yaml_merge(new_merge_attrib)
+
+    elif isinstance(yaml_item, dict):
+        new_yaml_item = {}
         for k, v in list(yaml_item.items()):
-            yaml_item.replace(k, simplify_expressions(v, context))
+            new_yaml_item[k] = expand_input_expressions(v, context)
     elif isinstance(yaml_item, list):
+        new_yaml_item = []
         for i in range(0, len(yaml_item)):
-            yaml_item[i] = simplify_expressions(yaml_item[i], context)
+            new_yaml_item.append(expand_input_expressions(yaml_item[i], context))
     elif isinstance(yaml_item, exp.Expression):
-        yaml_item = exp.simplify(yaml_item, context)
+        new_yaml_item = exp.simplify(yaml_item, context)
     elif isinstance(yaml_item, str):
         yaml_item_stripped = yaml_item.strip()
 
@@ -174,8 +254,8 @@ def simplify_expressions(yaml_item, context):
         mid_bits = yaml_item_stripped[3:-2]
 
         if exp_bits == '${{}}' and '${{' not in mid_bits:
-            yaml_item = exp.parse(yaml_item_stripped)
-            yaml_item = exp.simplify(yaml_item, context)
+            new_yaml_item = exp.parse(yaml_item_stripped)
+            new_yaml_item = exp.simplify(new_yaml_item, context)
         else:
             def replace_exp(m):
                 e = m.group(1).strip()
@@ -185,30 +265,31 @@ def simplify_expressions(yaml_item, context):
                 else:
                     return str(v)
 
-            yaml_item = RE_EXP.sub(replace_exp, yaml_item)
-    return yaml_item
-
-
-def step_type(m):
-    assert isinstance(m, YamlMap), m
-    if 'run' in m:
-        return 'run'
-    elif 'uses' in m:
-        return 'uses'
-    elif 'includes' in m:
-        return 'includes'
-    elif 'includes-script' in m:
-        return 'includes-script'
+            new_yaml_item = RE_EXP.sub(replace_exp, yaml_item)
+    elif isinstance(yaml_item, (bool, int, float, None.__class__)):
+        return yaml_item
     else:
-        raise ValueError('Unknown step type:\n' + pprint.pformat(m))
+        raise TypeError('{} ({!r})'.format(type(yaml_item), yaml_item))
+
+    assert new_yaml_item is not marker
+
+    return new_yaml_item
 
 
-def pop_if_exp(d):
+def get_needs(d):
+    needs = d.get('needs', [])
+    if isinstance(needs, str):
+        needs = [needs]
+    return needs
+
+
+def get_if_exp(d):
     if 'if' not in d:
         return True
 
     v = d['if']
-    d.replace('if', None)
+    if isinstance(v, CommentedMapExpression):
+        v = v.exp_value
     if isinstance(v, exp.Expression):
         return v
     if not isinstance(v, str):
@@ -221,77 +302,151 @@ def pop_if_exp(d):
     return exp.parse(v)
 
 
-def expand_step_includes(current_action, out_list, include_step):
-    assert step_type(include_step) == 'includes', (current_action, out_list, include_step)
+def build_inputs(target_yamldata, include_yamldata):
+    """
 
-    include_if = pop_if_exp(include_step)
+    >>> target = {'inputs': {'arg1': {'default': 1}, 'arg2': {'required': True}}}
+    >>> p(build_inputs(target, {'with': {'arg1': 2, 'arg2': 3}}))
+    {'arg1': 2, 'arg2': 3}
+    >>> p(build_inputs(target, {'with': {'arg2': 3}}))
+    {'arg1': 1, 'arg2': 3}
 
-    include_yamldata = get_action_data(current_action, include_step['includes'])
+    >>> p(build_inputs(target, {'with': {'arg1': 2}}))
+    Traceback (most recent call last):
+        ...
+    KeyError: "with statement was missing required argument 'arg2'...
+
+    >>> p(build_inputs(target, {'with': {'arg1': 2, 'arg2': 3, 'arg3': 4}}))
+    Traceback (most recent call last):
+        ...
+    KeyError: 'with statement had unused extra arguments: arg3: 4'
+
+    >>> p(build_inputs(target, {'with': {'arg1': 2, 'arg2': 3, 'arg3': 4, 'arg4': 'a'}}))
+    Traceback (most recent call last):
+        ...
+    KeyError: "with statement had unused extra arguments: arg3: 4, arg4: 'a'"
+    """
 
     # Calculate the inputs dictionary
-    if 'inputs' not in include_yamldata:
-        include_yamldata['inputs'] = {}
-
-    with_data = include_step.get('with', {})
+    with_data = copy.copy(include_yamldata.get('with', {}))
 
     inputs = {}
-    for in_name, in_info in include_yamldata['inputs'].items():
-        v = None
+    for in_name, in_info in target_yamldata.get('inputs', {}).items():
+        marker = {}
+        v = marker
+
+        # Set the default value
         if 'default' in in_info:
             v = in_info['default']
+
+        # Override with the provided value
         if in_name in with_data:
-            v = with_data[in_name]
+            v = with_data.pop(in_name)
 
+        # Check the value is set if required.
         if in_info.get('required', False):
-            assert v is not None, (in_name, in_info, with_data)
+            if v is marker:
+                raise KeyError(
+                    "with statement was missing required argument {!r}, got with:\n{}".format(
+                        in_name, pprint.pformat(include_yamldata.get('with', '*nothing*')),
+                    ),
+                )
 
-        inputs[in_name] = exp.parse(v)
+        inputs[in_name] = v
+
+    if with_data:
+        raise KeyError(
+            "with statement had unused extra arguments: {}".format(
+                ", ".join('%s: %r' % (k,v) for k,v in with_data.items())
+            )
+        )
+    return inputs
+
+
+# -----------------------------------------------------------------------------
+
+
+def step_type(m):
+    if 'run' in m:
+        return 'run'
+    elif 'uses' in m:
+        return 'uses'
+    elif 'includes' in m:
+        return 'includes'
+    elif 'includes-script' in m:
+        return 'includes-script'
+    else:
+        raise ValueError('Unknown step type:\n' + pprint.pformat(m) + '\n')
+
+
+def expand_step_includes(current_filepath, include_step):
+    assert step_type(include_step) == 'includes', (current_filepath, include_step)
+
+    include_filepath, include_yamldata = get_action_data(current_filepath, include_step['includes'])
+    assert 'runs' in include_yamldata, pprint.pformat(include_yamldata)
+    assert 'steps' in include_yamldata['runs'], pprint.pformat(include_yamldata)
+
+    try:
+        input_data = build_inputs(include_yamldata, include_step)
+    except KeyError as e:
+        raise SyntaxError('{}: {} while processing {} included with\n{}'.format(
+            current_filepath, e, include_filepath, pprint.pformat(include_step)))
+    if 'inputs' in include_yamldata:
+        del include_yamldata['inputs']
 
     context = dict(include_yamldata)
-    context['inputs'] = inputs
-    printdbg('\nInclude Step:\n', pprint.pformat(include_step))
-    printdbg('Inputs:\n', pprint.pformat(inputs))
-    printdbg('Include If:', repr(include_if))
-    printdbg('\n')
+    context['inputs'] = input_data
 
-    assert 'runs' in include_yamldata, include_yamldata
-    assert 'steps' in include_yamldata['runs'], include_yamldata['steps']
+    printdbg('\nInclude Step:')
+    printdbg(include_step)
+    printdbg('Inputs:')
+    printdbg(input_data)
+    printdbg('Before data:')
+    printdbg(include_yamldata)
 
-    steps = include_yamldata['runs']['steps']
-    while len(steps) > 0:
-        step = steps.pop(0)
-        step_if = pop_if_exp(step)
-        printdbg('\nStep:', include_step['includes']+'#'+str(len(out_list)))
-        printdbg('Inputs:\n', pprint.pformat(inputs))
-        printdbg('Before:\n', pprint.pformat(step))
-        printdbg('Before Step If:', repr(step_if))
-        step = simplify_expressions(step, context)
-        printdbg('---')
-        current_if = exp.AndF(include_if, exp.simplify(step_if, context))
-        printdbg('After:\n', pprint.pformat(step))
-        printdbg('After If:', repr(current_if))
-        printdbg('\n', end='')
+    # Do the input replacements in the yaml file.
+    include_yamldata = expand_input_expressions(include_yamldata, context)
 
-        if isinstance(current_if, exp.Expression):
-            step.replace('if', current_if, allow_missing=True)
-        elif current_if in (False, None, ''):
+    printdbg('---')
+    printdbg('After data:\n', pprint.pformat(include_yamldata))
+    printdbg('\n', end='')
+
+    assert 'runs' in include_yamldata, pprint.pformat(include_yamldata)
+    assert 'steps' in include_yamldata['runs'], pprint.pformat(include_yamldata)
+
+    current_if = get_if_exp(include_step)
+
+    out = []
+    for i, step in enumerate(include_yamldata['runs']['steps']):
+        step_if = exp.AndF(current_if, get_if_exp(step))
+
+        printdbg(f'Step {i} -', step.get('name', '????'))
+        printdbg('           Before If:', repr(step_if))
+        step_if = exp.simplify(step_if, context)
+        printdbg('            After If:', repr(step_if))
+
+        if isinstance(step_if, exp.Expression):
+            step['if'] = step_if
+        elif step_if in (False, None, ''):
             continue
         else:
-            assert current_if is True, (current_if, repr(current_if))
+            assert step_if is True, (step_if, repr(step_if))
             if 'if' in step:
                 del step['if']
 
-        out_list.append(step)
+        out.append((include_filepath, step))
+
+    return out
 
 
-def expand_step_includes_script(current_action, out_list, v):
-    assert step_type(v) == 'includes-script', (current_action, out_list, v)
+def expand_step_includes_script(current_filepath, v):
+    assert step_type(v) == 'includes-script', (current_filepath, v)
 
     script = v.pop('includes-script')
-    script_file = str((pathlib.Path('/'+current_action.path).parent / script).resolve())[1:]
-    printerr(f"Including script: {script} (relative to {current_action}) found at {script_file}")
+    script_file = str((pathlib.Path('/'+current_filepath.path).parent / script).resolve())[1:]
+    printerr(f"Including script: {script} (relative to {current_filepath}) found at {script_file}")
 
-    script_filepath = get_filepath(current_action, './'+script_file)
+    script_filepath = get_filepath(current_filepath, './'+script_file)
     script_data = get_filepath_data(script_filepath)
 
     v['run'] = script_data
@@ -318,351 +473,265 @@ def expand_step_includes_script(current_action, out_list, v):
             # Standard shell, no `{0}` needed.
             v['shell'] = 'bash'
 
-    expand_step_run(current_action, out_list, v)
+    return expand_step_run(current_filepath, v)
 
 
-def expand_step_uses(current_action, out_list, v):
-    assert step_type(v) == 'uses', (current_action, out_list, v)
+def expand_step_uses(current_filepath, v):
+    assert step_type(v) == 'uses', (current_filepath, v)
     # Support the `/{name}` format on `uses` values.
     if v['uses'].startswith('/'):
-        v['uses'] = './.github/actions' + v['uses']
+        v['uses'] = './.github/includes/actions' + v['uses']
 
-    out_list.append(v)
-
-
-def expand_step_run(current_action, out_list, v):
-    assert step_type(v) == 'run', (current_action, out_list, v)
-    out_list.append(v)
+    return v
 
 
-def expand_steps_list(current_action, yaml_list):
-    out_list = []
-    for i, v in list(enumerate(yaml_list)):
-        {
-            'run': expand_step_run,
-            'uses': expand_step_uses,
-            'includes': expand_step_includes,
-            'includes-script': expand_step_includes_script,
-        }[step_type(v)](current_action, out_list, v)
-    return out_list
+def expand_step_run(current_filepath, v):
+    assert step_type(v) == 'run', (current_filepath, v)
+    return v
 
 
-def expand_list(current_action, yaml_list):
-    for i, v in list(enumerate(yaml_list)):
-        yaml_list[i] = expand(current_action, v)
-    return yaml_list
+# -----------------------------------------------------------------------------
 
 
-def expand_jobs_includes(current_workflow, ojobname, include_jobs):
-    if not ojobname:
-        ojobname = ''
-    include_yamldata = get_workflow_data(current_workflow, include_jobs['includes'])
+def expand_job_steps(current_filepath, job_data):
+    assert 'steps' in job_data, pprint.pformat(job_data)
+
+    steps = list((current_filepath, s) for s in job_data['steps'])
+
+    new_steps = []
+    while steps:
+        step_filepath, step_data = steps.pop(0)
+
+        st = step_type(step_data)
+        if st != 'includes':
+            new_steps.append({
+                'run': expand_step_run,
+                'uses': expand_step_uses,
+                'includes-script': expand_step_includes_script,
+            }[st](step_filepath, step_data))
+        else:
+            steps_to_add = expand_step_includes(step_filepath, step_data)
+            while steps_to_add:
+                new_step_filepath, new_step_data = steps_to_add.pop(-1)
+                steps.insert(0, (new_step_filepath, new_step_data))
+
+    job_data = copy.copy(job_data)
+    job_data['steps'] = new_steps
+    return job_data
+
+
+def expand_job_include(current_filepath, include_job):
+    assert 'includes' in include_job, pprint.pformat(include_job)
+
+    include_filepath, include_yamldata = get_workflow_data(
+        current_filepath, include_job['includes'])
     assert 'jobs' in include_yamldata, pprint.pformat(include_yamldata)
 
-    ojob_needs = include_jobs.get('needs', [])
-    if not isinstance(ojob_needs, list):
-        ojob_needs = [ojob_needs]
-
-    # Calculate the inputs dictionary
-    if 'inputs' not in include_yamldata:
-        include_yamldata['inputs'] = {}
-
-    with_data = include_jobs.get('with', {})
-
-    inputs = {}
-    for in_name, in_info in include_yamldata['inputs'].items():
-        v = None
-        if 'default' in in_info:
-            v = in_info['default']
-        if in_name in with_data:
-            v = with_data[in_name]
-
-        if in_info.get('required', False):
-            assert v is not None, (in_name, in_info, with_data)
-
-        inputs[in_name] = exp.parse(v)
+    try:
+        input_data = build_inputs(include_yamldata, include_job)
+    except KeyError as e:
+        raise SyntaxError('{} while processing {} included with:\n{}'.format(
+            e, include_filepath, pprint.pformat(include_job)))
+    del include_yamldata['inputs']
 
     context = dict(include_yamldata)
-    context['inputs'] = inputs
-    printdbg('\nInclude Jobs:\n', pprint.pformat(include_jobs))
-    printdbg('Inputs:\n', pprint.pformat(inputs))
-    printdbg('\n')
+    context['inputs'] = input_data
+
+    printdbg('')
+    printdbg('Include Job:')
+    printdbg(include_job)
+    printdbg('Inputs:')
+    printdbg(input_data)
+    printdbg('')
+    printdbg('Before job data:')
+    printdbg(include_yamldata)
+
+    # Do the input replacements in the yaml file.
+    printdbg('---')
+    include_yamldata = expand_input_expressions(include_yamldata, context)
+    printdbg('---')
+
+    printdbg('After job data:')
+    printdbg(include_yamldata)
+    printdbg('')
+
+    return include_filepath, include_yamldata, context
+
+
+def expand_workflow_jobs(current_workflow, current_workflow_data):
+    assert 'jobs' in current_workflow_data, pprint.pformat(current_workflow_data)
+
+    jobs = list((current_workflow, k, v) for k, v in current_workflow_data['jobs'].items())
 
     new_jobs = []
-    for i, jobname in enumerate(include_yamldata['jobs']):
-        jobs_map = include_yamldata['jobs'][jobname]
-        jobs_if = pop_if_exp(jobs_map)
 
-        printdbg('\nJob:', f'{ojobname}#{i} - {jobname}')
-        printdbg('Inputs:\n', pprint.pformat(inputs))
-        printdbg('Before:\n', pprint.pformat(jobs_map))
-        printdbg('Before Job If:', repr(jobs_if))
-        jobs_map_out = simplify_expressions(jobs_map, context)
-        printdbg('---')
-        current_if = exp.simplify(jobs_if, context)
-        printdbg('After:\n', pprint.pformat(jobs_map_out))
-        printdbg('After If:', repr(current_if))
-        printdbg('\n', end='')
+    while jobs:
+        current_filepath, job_name, job_data = jobs.pop(0)
+        printdbg('\nJob:', f'{job_name}#{len(new_jobs)}')
 
-        new_needs = list(ojob_needs)
-        if 'needs' in jobs_map:
-            job_needs = jobs_map['needs']
-            if isinstance(job_needs, list):
-                for i in job_needs:
-                    new_needs.append(ojobname+i)
-            elif isinstance(job_needs, str):
-                new_needs.append(ojobname+job_needs)
+        if job_name is None:
+            job_name = ''
+
+        if 'includes' not in job_data:
+            # Once all the job includes have been expanded, we can expand the
+            # steps.
+            job_data = expand_job_steps(current_filepath, job_data)
+            new_jobs.append((job_name, job_data))
+            continue
+
+        current_needs = get_needs(job_data)
+        current_if = get_if_exp(job_data)
+
+        include_filepath, included_data, context = expand_job_include(current_filepath, job_data)
+        assert 'jobs' in included_data, pprint.pformat(included_data)
+
+        included_jobs = list(included_data['jobs'].items())
+        while included_jobs:
+            included_job_name, included_job_data = included_jobs.pop(-1)
+            new_job_name = job_name+included_job_name
+
+            new_needs = current_needs + [job_name+n for n in get_needs(included_job_data)]
+            if new_needs:
+                if len(new_needs) == 1:
+                    new_needs = new_needs.pop(0)
+                included_job_data['needs'] = new_needs
+
+            new_if = exp.AndF(current_if, get_if_exp(included_job_data))
+
+            printdbg(new_job_name)
+            printdbg('Before Job If:', repr(new_if))
+            new_if = exp.simplify(new_if, context)
+            printdbg(' After Job If:', repr(new_if))
+
+            if isinstance(new_if, exp.Expression):
+                included_job_data['if'] = current_if
+            elif new_if in (False, None, ''):
+                continue
             else:
-                assert False, (job_needs, jobs_map)
+                assert new_if is True, (new_if, repr(new_if))
+                if 'if' in included_job_data:
+                    del included_job_data['if']
 
-        if len(new_needs) > 1:
-            jobs_map.replace('needs', new_needs, allow_missing=True)
-        elif len(new_needs) == 1:
-            jobs_map.replace('needs', new_needs[0], allow_missing=True)
+            jobs.insert(0, (include_filepath, new_job_name, included_job_data))
 
-        if isinstance(current_if, exp.Expression):
-            jobs_map_out['if'] = current_if
-        elif current_if in (False, None, ''):
-            continue
-        else:
-            assert current_if is True, (current_if, repr(current_if))
-            if 'if' in jobs_map_out:
-                del jobs_map_out['if']
+    new_workflow = copy.copy(current_workflow_data)
 
-        new_jobs.append((ojobname+jobname, jobs_map_out))
+    job_names = []
+    # Set all the new jobs
+    for job_name, job_data in new_jobs:
+        new_workflow['jobs'][job_name] = job_data
+        job_names.append(job_name)
+    # Remove any jobs of the older jobs which still exist.
+    for job_name in list(new_workflow['jobs'].keys()):
+        if job_name not in job_names:
+            del new_workflow['jobs'][job_name]
+    return new_workflow
 
-    jobnames = [n for n, m in new_jobs]+ojob_needs
-    for n, job_map in new_jobs:
-        if 'needs' not in job_map:
-            continue
-        needs = job_map['needs']
-        if isinstance(needs, str):
-            needs = [needs]
-        for j in needs:
-            assert j in jobnames or j in ojob_needs, (j, jobnames)
-
-    return new_jobs
-
-
-def expand_jobs_map(current_workflow, yaml_map):
-    yaml_map_out = YamlMap()
-    for k, v in yaml_map.items():
-        assert isinstance(v, YamlMap), pprint.pformat((k, v))
-        if 'includes' in v:
-            for jobname, jobinfo in expand_jobs_includes(current_workflow, k, v):
-                yaml_map_out[jobname] = jobinfo
-        else:
-            yaml_map_out[k] = expand(current_workflow, v)
-    return yaml_map_out
-
-
-def expand_yamlmap(current_action, yaml_map):
-    #print('expand_yamlmap', current_action, yaml_map)
-    yaml_map_out = YamlMap()
-    for k, v in yaml_map.items():
-        if k == 'steps':
-            yaml_map_out[k] = expand_steps_list(current_action, v)
-        elif k == 'jobs':
-            yaml_map_out[k] = expand_jobs_map(current_action, v)
-        else:
-            yaml_map_out[k] = expand(current_action, v)
-    return yaml_map_out
-
-
-def expand(current_action, yaml_item):
-    assert not isinstance(yaml_item, dict), (type(yaml_item), yaml_item)
-    if isinstance(yaml_item, YamlMap):
-        return expand_yamlmap(current_action, yaml_item)
-    elif isinstance(yaml_item, list):
-        return expand_list(current_action, yaml_item)
-    else:
-        return yaml_item
 
 # ==============================================================
 # PyYaml Loader / Dumper Customization
 # ==============================================================
 
 
+resolver.BaseResolver.add_implicit_resolver(
+    u'tag:github.com,2020:expression',
+    util.RegExp(u'^(?:\\${{[^}]*}})$'),
+    [u'$'], # - a list of first characters to match
+)
 
-class YamlMap:
 
-    """
+def construct_expression(self, node):
+    if isinstance(node, MapExpressionNode):
+        return CommentedMapExpression(node.value)
 
-    >>> y = YamlMap()
-    >>> '1' in y
-    False
-    >>> y['1'] = 1
-    >>> '1' in y
-    True
-    >>> y['1']
-    1
-    >>> y['1'] = 2
-    >>> '1' in y
-    True
-    >>> y['1']
-    Traceback (most recent call last):
-      ...
-    actions_includes.YamlMap.MultiKeyError: 'Multi key: 1 == [1, 2]'
-    >>> y['2'] = 3
-    >>> y['1'] = 4
-    >>> list(y.items())
-    [('1', 1), ('1', 2), ('2', 3), ('1', 4)]
+    assert isinstance(node, yaml.nodes.ScalarNode), (type(node), node)
 
-    >>> del y['1']
-    >>> list(y.items())
-    [('2', 3)]
+    v = node.value
+    if isinstance(v, str):
+        v = exp.parse(v)
 
-    >>> y['3'] = 4
-    >>> y.replace('2', 5)
-    >>> list(y.items())
-    [('2', 5), ('3', 4)]
+    assert isinstance(v, exp.Expression), (type(v), v)
 
-    """
-    _MARKER = []
+    return v
 
-    class MultiKeyError(KeyError):
-        pass
 
-    def __init__(self, d=None):
-        self.__i = 0
-        self._keys = defaultdict(list)
-        self._values = {}
-        self._order = []
-        if d:
-            if hasattr(d, 'items'):
-                d = d.items()
-            for k, v in d:
-                self[k] = v
+RoundTripConstructor.add_constructor(u'tag:github.com,2020:expression', construct_expression)
 
-    def __getitem__(self, k):
-        if k not in self._keys:
-            raise KeyError(f'No such key: {k}')
-        r = [self._values[i] for i in self._keys[k]]
-        if len(r) == 1:
-            return r[0]
-        raise self.MultiKeyError(f'Multi key: {k} == {r}')
 
-    def __setitem__(self, k, v):
-        self.__i += 1
-        assert self.__i not in self._values
-        assert self.__i not in self._order
-        self._keys[k].append(self.__i)
-        self._values[self.__i] = v
-        self._order.append((self.__i, k))
+# ==============================================================
 
-    def replace(self, k, v, allow_missing=False):
-        if k not in self._keys:
-            if not allow_missing:
-                raise KeyError(f'No such key: {k}')
-            else:
-                self[k] = None
-        i = self._keys[k]
-        if len(i) > 1:
-            raise self.MultiKeyError(f'Multi key: {k} == {i}')
-        self._values[i[0]] = v
 
-    def __delitem__(self, k):
-        if k not in self._keys:
-            raise KeyError(f'No such key: {k}')
-        to_remove = self._keys[k]
-        for i in to_remove:
-            del self._values[i]
-            self._order.remove((i, k))
-        del self._keys[k]
+class CommentedMapExpression(yaml.comments.CommentedMap):
+    def __init__(self, a0, *args, **kw):
+        yaml.comments.CommentedMap.__init__(self, [], *args, **kw)
 
-    def get(self, k, default=_MARKER):
-        try:
-            return self[k]
-        except KeyError:
-            if default is not self._MARKER:
-                return default
-            raise
+        if isinstance(a0, str):
+            a0 = exp.parse(a0)
 
-    def __contains__(self, k):
-        return k in self._keys
-
-    class map_items:
-        def __init__(self, m):
-            self.m = m
-
-        def __iter__(self):
-            for i, k in self.m._order:
-                v = self.m._values[i]
-                yield (k, v)
-
-        def __len__(self):
-            return len(self.m)
-
-    def items(self):
-        return self.map_items(self)
-
-    class map_keys:
-        def __init__(self, m):
-            self.m = m
-
-        def __iter__(self):
-            for i, k in self.m._order:
-                yield k
-
-        def __len__(self):
-            return len(self.m)
-
-    def keys(self):
-        return self.map_keys(self)
-
-    class map_values:
-        def __init__(self, m):
-            self.m = m
-
-        def __iter__(self):
-            for i, _ in self.m._order:
-                yield self.m._values[i]
-
-        def __len__(self):
-            return len(self.m)
-
-    def values(self):
-        return self.map_values(self)
-
-    def __iter__(self):
-        return iter(self.keys())
-
-    def __len__(self):
-        return len(self._order)
+        self.exp_value = a0
 
     def __repr__(self):
-        return repr(list(self.items()))
-
-    def pop(self, k):
-        v = self[k]
-        del self[k]
-        return v
-
-    @staticmethod
-    def presenter(dumper, data):
-        return dumper.represent_mapping('tag:yaml.org,2002:map', data)
-
-    @staticmethod
-    def _pprint(p, object, stream, indent, allowance, context, level):
-        _sort_dicts = p._sort_dicts
-        p._sort_dicts = False
-        p._pprint_dict(object, stream, indent, allowance, context, level)
-        p._sort_dicts = _sort_dicts
+        return 'CommentedMap({!r})'.format(self.exp_value)
 
 
-pprint.PrettyPrinter._dispatch[YamlMap.__repr__] = YamlMap._pprint
+class MapExpressionNode(yaml.nodes.MappingNode):
+    def __init__(self, tag, value, *args, **kw):
+        yaml.nodes.MappingNode.__init__(self, tag, value, *args, **kw)
+
+    def __repr__(self):
+        return 'MapNode({!r})'.format(self.value)
 
 
-def construct_yaml_map(self, node):
-    data = YamlMap()
-    yield data
-    for key_node, value_node in node.value:
-        key = self.construct_object(key_node, deep=True)
-        val = self.construct_object(value_node, deep=True)
-        data[key] = val
+class RoundTripConstructorWithExp(RoundTripConstructor):
+    def construct_mapping(self, node, maptyp, deep=False):  # type: ignore
+        for i, (key_node, value_node) in enumerate(node.value):
+            # Upgrade a ScalarNode into a MappingNode so it can be added as a merge reference
+            if key_node.tag == u'tag:yaml.org,2002:merge' and value_node.tag == 'tag:github.com,2020:expression':
+                assert isinstance(value_node, yaml.nodes.ScalarNode), value_node
+                new_node = MapExpressionNode('tag:github.com,2020:expression', value_node.value)
+                node.value[i] = (key_node, new_node)
+
+        return RoundTripConstructor.construct_mapping(self, node, maptyp, deep)
 
 
-FullConstructor.add_constructor(u'tag:yaml.org,2002:map', construct_yaml_map)
+class RoundTripLoaderWithExp(
+    yaml.reader.Reader,
+    yaml.scanner.RoundTripScanner,
+    yaml.parser.RoundTripParser,
+    yaml.composer.Composer,
+    RoundTripConstructorWithExp,
+    yaml.resolver.VersionedResolver,
+):
+    def __init__(self, stream, version=None, preserve_quotes=None):
+        # type: (StreamTextType, Optional[VersionType], Optional[bool]) -> None
+        # self.reader = Reader.__init__(self, stream)
+        yaml.reader.Reader.__init__(self, stream, loader=self)
+        yaml.scanner.RoundTripScanner.__init__(self, loader=self)
+        yaml.parser.RoundTripParser.__init__(self, loader=self)
+        yaml.composer.Composer.__init__(self, loader=self)
+        RoundTripConstructorWithExp.__init__(self, preserve_quotes=preserve_quotes, loader=self)
+        yaml.resolver.VersionedResolver.__init__(self, version, loader=self)
+
+
+# ==============================================================
+
+
+def exp_presenter(dumper, data):
+    return dumper.represent_scalar('tag:github.com,2020:expression', '${{ '+str(data)+' }}')
+
+
+yaml.representer.RoundTripRepresenter.add_multi_representer(exp.Expression, exp_presenter)
+
+
+def map_exp_presenter(dumper, data):
+    print("-->", data.node)
+    return data.node
+
+
+yaml.representer.RoundTripRepresenter.add_representer(MapExpressionNode, map_exp_presenter)
+
+
+# ==============================================================
 
 
 def str_presenter(dumper, data):
@@ -687,24 +756,102 @@ class On:
         return dumper.represent_scalar('tag:yaml.org,2002:bool', 'on')
 
 
-def exp_presenter(dumper, data):
-    return dumper.represent_scalar('tag:yaml.org,2002:str', '${{ '+str(data)+' }}')
+yaml.representer.RoundTripRepresenter.add_representer(str, str_presenter)
+yaml.representer.RoundTripRepresenter.add_representer(None.__class__, none_presenter)
+yaml.representer.RoundTripRepresenter.add_representer(On, On.presenter)
 
 
-yaml.add_multi_representer(exp.Expression, exp_presenter)
-yaml.add_representer(str, str_presenter)
-yaml.add_representer(None.__class__, none_presenter)
-yaml.add_representer(On, On.presenter)
-yaml.add_representer(YamlMap, YamlMap.presenter)
+def yaml_load(current_action, yaml_data):
+    """
 
-# ==============================================================
+    >>> d = yaml_load(None, '''
+    ... jobs:
+    ...   First:
+    ...     if: ${{ hello }}
+    ... ''')
+    >>> p(d)
+    {'jobs': {'First': {'if': Value(hello)}}}
+    >>> yaml_dump(None, d)
+    'jobs:\\n  First:\\n    if: ${{ hello }}\\n'
+    """
 
-
-def yaml_load_and_expand(current_action, yaml_data):
     md5sum = hashlib.md5(yaml_data.encode('utf-8')).hexdigest()
     printerr(f'Loading yaml file {current_action} with contents md5 of {md5sum}')
-    return expand(current_action, yaml.load(
-        yaml_data, Loader=yaml.FullLoader))
+    printdbg(yaml_data)
+    return yaml.load(yaml_data, Loader=RoundTripLoaderWithExp)
+
+
+class RoundTripDumperWithoutAliases(yaml.RoundTripDumper):
+    def ignore_aliases(self, data):
+        return True
+
+
+def yaml_dump(current_action, data):
+    return yaml.dump(data, allow_unicode=True, width=1000, Dumper=RoundTripDumperWithoutAliases)
+
+
+# Enable pretty printing for the ruamel.yaml.comments objects
+# --------------------------------------------------------------
+
+
+def commentedmapexp_pprint(p, object, stream, indent, allowance, context, level):
+    assert isinstance(object, CommentedMapExpression), object
+    p._format(object.exp_value, stream, indent, allowance, context, level)
+
+
+def commentedmap_pprint(p, object, stream, indent, allowance, context, level):
+    _sort_dicts = p._sort_dicts
+    p._sort_dicts = False
+
+    m = getattr(object, yaml.comments.merge_attrib, [])
+    if m:
+        write = stream.write
+        write('<')
+        if p._indent_per_level > 1:
+            write((p._indent_per_level - 1) * ' ')
+        l = [(None, dict(object.non_merged_items()))]+m
+        while l:
+            _, o = l.pop(0)
+            p._format(o, stream, indent, allowance, context, level)
+            if l:
+                write('+')
+        write('>')
+    else:
+        p._pprint_dict(object, stream, indent, allowance, context, level)
+
+    p._sort_dicts = _sort_dicts
+
+
+def commentedseq_pprint(p, object, stream, indent, allowance, context, level):
+    assert isinstance(object, yaml.comments.CommentedSeq), (type(object), object)
+    p._pprint_list(list(object), stream, indent, allowance, context, level)
+
+
+def commentedset_pprint(p, object, stream, indent, allowance, context, level):
+    assert isinstance(object, yaml.comments.CommentedSet), (type(object), object)
+    p._pprint_set(set(object), stream, indent, allowance, context, level)
+
+
+def commentedmap_repr(self):
+    if self.merge:
+        l = [(None, dict(self.non_merged_items()))]+self.merge
+        return '<{}>'.format('+'.join(repr(d) for _, d in l))
+    else:
+        return repr(dict(self))
+
+yaml.comments.CommentedMap.__repr__ = commentedmap_repr
+
+
+pprint.PrettyPrinter._dispatch[CommentedMapExpression.__repr__] = commentedmapexp_pprint
+pprint.PrettyPrinter._dispatch[yaml.comments.CommentedMap.__repr__] = commentedmap_pprint
+pprint.PrettyPrinter._dispatch[yaml.comments.CommentedKeyMap.__repr__] = commentedmap_pprint
+pprint.PrettyPrinter._dispatch[yaml.comments.CommentedSeq.__repr__] = commentedseq_pprint
+pprint.PrettyPrinter._dispatch[yaml.comments.CommentedSet.__repr__] = commentedset_pprint
+
+# --------------------------------------------------------------
+
+
+# ==============================================================
 
 
 def expand_workflow(current_workflow, to_path):
@@ -734,9 +881,11 @@ def expand_workflow(current_workflow, to_path):
 # using the script from https://github.com/{}
 """.format(MARKER+str(src_path), INCLUDE_ACTION_NAME))
 
-    data = yaml_load_and_expand(current_workflow, '\n'.join(workflow_data))
+    data = yaml_load(current_workflow, '\n'.join(workflow_data))
+    data = expand_workflow_jobs(current_workflow, data)
     new_data = {}
-    new_data[On()] = data.pop(True)
+    if True in data:
+        new_data[On()] = data.pop(True)
     for k, v in data.items():
         new_data[k] = v
     data = new_data
@@ -759,10 +908,10 @@ def expand_workflow(current_workflow, to_path):
     printdbg('')
     printdbg('Final yaml data:')
     printdbg('-'*75)
-    printdbg(pprint.pformat(data))
+    printdbg(data)
     printdbg('-'*75)
 
-    output.append(yaml.dump(data, allow_unicode=True, sort_keys=False, width=1000))
+    output.append(yaml_dump(current_workflow, data))
 
     return '\n'.join(output)
 
@@ -808,7 +957,7 @@ def main(args):
 
         return 0
     finally:
-        if tfile is not None:
+        if tfile is not None and os.path.exists(tfile):
             with open(tfile) as f:
                 print(f.read())
 

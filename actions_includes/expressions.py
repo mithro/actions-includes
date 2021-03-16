@@ -86,9 +86,9 @@ def to_literal(v):
 
 
 INT = re.compile('^-?[0-9]+$')
-FLOAT = re.compile('^-?[0-9]+\.[0-9]+$')
+FLOAT = re.compile('^-?[0-9]+\\.[0-9]+$')
 HEX = re.compile('^0x[0-9a-fA-F]+$')
-EXP = re.compile('^(-?[0-9]+\.\[0-9]+)-?[eE]([0-9.]+)$')
+EXP = re.compile('^(-?[0-9]+\\.\\[0-9]+)-?[eE]([0-9.]+)$')
 VALUE = re.compile('^[a-zA-Z][_a-zA-Z0-9\\-]*$')
 LOOKUP = re.compile('(?:\\.[a-zA-Z][_a-zA-Z0-9\\-]*)|(?:\\[[^\\]]+\\])')
 

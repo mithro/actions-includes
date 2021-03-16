@@ -52,12 +52,8 @@ jobs:
     needs: docker-image-build
     strategy:
       matrix:
-        use-first:
-        - true
-        - false
-        use-last:
-        - true
-        - false
+        use-first: [true, false]
+        use-last: [true, false]
     runs-on: ubuntu-20.04
     steps:
     - uses: mithro/actions-includes@main
@@ -69,16 +65,20 @@ jobs:
       if: ${{ matrix.use-first }}
       run: |
         echo "First step!"
+
     - name: Middle step
       run: |
         echo "Hello World"
+
     - name: First step
       if: ${{ matrix.use-first }}
       run: |
         echo "First step!"
+
     - name: Middle step
       run: |
         echo "Hello World"
+
     - name: Last step
       if: ${{ matrix.use-first }}
       run: |
@@ -87,9 +87,11 @@ jobs:
       if: ${{ matrix.use-last }}
       run: |
         echo "First step!"
+
     - name: Middle step
       run: |
         echo "Hello World"
+
     - name: Last step
       if: ${{ matrix.use-last }}
       run: |
@@ -97,9 +99,11 @@ jobs:
     - name: First step
       run: |
         echo "First step!"
+
     - name: Middle step
       run: |
         echo "Hello World"
+
     - name: Last step
       if: ${{ matrix.use-last }}
       run: |

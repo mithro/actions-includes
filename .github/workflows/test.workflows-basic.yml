@@ -59,6 +59,7 @@ jobs:
     - name: First step
       run: |
         echo "First job"
+
     needs: docker-image-build
   FirstFirstJob2:
     runs-on: ubuntu-20.04
@@ -71,6 +72,7 @@ jobs:
     - name: First step
       run: |
         echo "First job"
+
     needs: docker-image-build
   FirstMiddleJob:
     runs-on: ubuntu-20.04
@@ -86,6 +88,7 @@ jobs:
     - name: Middle step
       run: |
         echo "Hello World"
+
   SecondFirstJob1:
     runs-on: ubuntu-20.04
     steps:
@@ -97,6 +100,7 @@ jobs:
     - name: First step
       run: |
         echo "First job"
+
     needs: docker-image-build
   SecondMiddleJob:
     runs-on: ubuntu-20.04
@@ -112,6 +116,7 @@ jobs:
     - name: Middle step
       run: |
         echo "Hello World"
+
   SecondLastJob:
     runs-on: ubuntu-20.04
     needs:
@@ -138,6 +143,7 @@ jobs:
     - name: First step
       run: |
         echo "First job"
+
     needs: docker-image-build
   FirstJob2:
     runs-on: ubuntu-20.04
@@ -150,6 +156,7 @@ jobs:
     - name: First step
       run: |
         echo "First job"
+
     needs: docker-image-build
   MiddleJob:
     runs-on: ubuntu-20.04
@@ -165,6 +172,7 @@ jobs:
     - name: Middle step
       run: |
         echo "Hello World"
+
   LastJob:
     runs-on: ubuntu-20.04
     needs:

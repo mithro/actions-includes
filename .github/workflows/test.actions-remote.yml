@@ -62,14 +62,17 @@ jobs:
     - name: First step
       run: |
         echo "First step!"
+
     - name: Middle step
       run: |
         echo "Hello World"
+
     - name: Last step
       run: |
         echo "Last step!"
     - run: |
         echo "Post-step"
+
   test-setting-default-true-to-false:
     needs: docker-image-build
     runs-on: ubuntu-20.04
@@ -84,8 +87,10 @@ jobs:
     - name: Middle step
       run: |
         echo "Hello World"
+
     - run: |
         echo "Post-step"
+
   test-basic:
     needs: docker-image-build
     runs-on: ubuntu-20.04
@@ -98,9 +103,11 @@ jobs:
     - name: First step
       run: |
         echo "First step!"
+
     - name: Middle step
       run: |
         echo "Hello World"
+
   test-recursive-remote-with-local:
     needs: docker-image-build
     runs-on: ubuntu-20.04
@@ -113,30 +120,38 @@ jobs:
     - name: Middle step
       run: |
         echo "First step"
+
     - name: First step
       run: |
         echo "First step!"
+
     - name: Middle step
       run: |
         echo "Middle step"
+
     - name: Last step
       run: |
         echo "Last step!"
     - name: Middle step
       run: |
         echo "Last step"
+
     - name: Middle step
       run: |
         echo "First step"
+
     - name: First step
       run: |
         echo "First step!"
+
     - name: Middle step
       run: |
         echo "Middle step"
+
     - name: Middle step
       run: |
         echo "Middle step"
+
   test-recursive-remote-with-remote:
     needs: docker-image-build
     runs-on: ubuntu-20.04
@@ -149,30 +164,38 @@ jobs:
     - name: Middle step
       run: |
         echo "First step"
+
     - name: First step
       run: |
         echo "First step!"
+
     - name: Middle step
       run: |
         echo "Middle step"
+
     - name: Last step
       run: |
         echo "Last step!"
     - name: Middle step
       run: |
         echo "Last step"
+
     - name: Middle step
       run: |
         echo "First step"
+
     - name: First step
       run: |
         echo "First step!"
+
     - name: Middle step
       run: |
         echo "Middle step"
+
     - name: Middle step
       run: |
         echo "Middle step"
+
   test-other-location:
     needs: docker-image-build
     runs-on: ubuntu-20.04
@@ -185,6 +208,7 @@ jobs:
     - name: First step
       run: |
         echo "First step!"
+
     - name: Last step
       run: |
         echo "Last step!"
@@ -217,6 +241,7 @@ jobs:
     - name: First step
       run: |
         echo "First step!"
+
     - name: Last step
       run: |
         echo "Last step!"
@@ -231,24 +256,29 @@ jobs:
     - name: First step
       run: |
         echo "First step!"
+
     - name: Last step
       run: |
         echo "Last step!"
     - name: First step
       run: |
         echo "First step!"
+
     - name: Last step
       run: |
         echo "Last step!"
     - name: Middle step
       run: |
         echo "First step"
+
     - name: First step
       run: |
         echo "First step!"
+
     - name: Middle step
       run: |
         echo "Middle step"
+
   test-include-some1:
     needs: docker-image-build
     runs-on: ubuntu-20.04
@@ -261,9 +291,11 @@ jobs:
     - name: Test
       if: ${{ !startsWith(runner.os, 'Linux') }}
       run: true
+
     - name: Output message
       run: |
         echo "Hello everyone!"
+
     - name: Be Polite
       run: |
         echo "Goodbye!"
@@ -279,9 +311,12 @@ jobs:
     - name: Test
       if: ${{ !startsWith(runner.os, 'Linux') }}
       run: true
+
     - name: Message not polite?
       run: |
         echo "No hello?"
+
     - name: Output message
       run: |
         echo "Everyone!"
+

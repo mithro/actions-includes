@@ -52,7 +52,7 @@ def parse_remote_path(action_name):
     return RemoteFilePath(user, repo, ref, path)
 
 
-def get_filepath(current, filepath):
+def get_filepath(current, filepath, filetype=None):
     """
     >>> localfile_current = LocalFilePath(pathlib.Path('/path'), 'abc.yaml')
     >>> remotefile_current = RemoteFilePath('user', 'repo', 'ref', 'abc.yaml')
@@ -61,21 +61,25 @@ def get_filepath(current, filepath):
     >>> get_filepath(localfile_current, './.github/actions/blah')
     LocalFilePath(repo_root=PosixPath('/path'), path=PosixPath('.github/actions/blah'))
 
-    >>> get_filepath(localfile_current, '/blah')
-    LocalFilePath(repo_root=PosixPath('/path'), path=PosixPath('.github/actions/blah'))
+    >>> get_filepath(localfile_current, '/blah', 'action')
+    LocalFilePath(repo_root=PosixPath('/path'), path=PosixPath('.github/includes/actions/blah'))
+
+    >>> get_filepath(localfile_current, '/blah', 'workflow')
+    LocalFilePath(repo_root=PosixPath('/path'), path=PosixPath('.github/includes/workflows/blah'))
 
     Local path on current remote gets converted to a remote path.
     >>> get_filepath(remotefile_current, './.github/actions/blah')
     RemoteFilePath(user='user', repo='repo', ref='ref', path='.github/actions/blah')
 
-    >>> get_filepath(remotefile_current, '/blah')
-    RemoteFilePath(user='user', repo='repo', ref='ref', path='.github/actions/blah')
+    >>> get_filepath(remotefile_current, '/blah', 'workflow')
+    RemoteFilePath(user='user', repo='repo', ref='ref', path='.github/includes/workflows/blah')
     """
 
     # Resolve '/$XXX' to './.github/actions/$XXX'
     if filepath.startswith('/'):
+        assert filetype is not None, (current, filepath, filetype)
         filepath = '/'.join(
-            ['.', '.github', 'actions', filepath[1:]])
+            ['.', '.github', 'includes', filetype+'s', filepath[1:]])
 
     if filepath.startswith('./'):
         assert '@' not in filepath, (

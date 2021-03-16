@@ -17,6 +17,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+import pprint
 import os
 import sys
 
@@ -30,4 +31,8 @@ DEBUG = bool(os.environ.get('DEBUG', False))
 
 def printdbg(*args, **kw):
     if DEBUG:
+        args = list(args)
+        for i in range(0, len(args)):
+            if not isinstance(args[i], str):
+                args[i] = pprint.pformat(args[i])
         print(*args, file=sys.stderr, **kw)

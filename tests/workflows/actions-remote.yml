@@ -95,9 +95,6 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - includes: mithro/actions-includes/include@other
-      with:
-          message: 'Hello World'
-          use-last: true
 
   test-includes-script:
     needs: docker-image-build
