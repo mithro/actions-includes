@@ -17,6 +17,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+import os.path
 import pathlib
 import urllib
 import urllib.request
@@ -32,9 +33,28 @@ Functions for dealing with files that could either be local on disk or on in a
 remote GitHub repository.
 """
 
+class FilePath:
+    pass
 
-LocalFilePath = namedtuple('LocalFilePath', 'repo_root path')
-RemoteFilePath = namedtuple('RemoteFilePath', 'user repo ref path')
+
+_LocalFilePath = namedtuple('LocalFilePath', 'repo_root path')
+class LocalFilePath(_LocalFilePath, FilePath):
+    def __new__(cls, repo_root, path):
+        if isinstance(repo_root, str):
+            repo_root = pathlib.Path(repo_root)
+        if isinstance(path, str):
+            path = pathlib.Path(path)
+        return super().__new__(cls, repo_root, path)
+
+    def __str__(self):
+        return os.path.join(self.repo_root, self.path)
+
+
+_RemoteFilePath = namedtuple('RemoteFilePath', 'user repo ref path')
+class RemoteFilePath(_RemoteFilePath, FilePath):
+    def __str__(self):
+        return '{user}/{repo}/{path}@{ref}'.format(
+            user=self.user, repo=self.repo, path=self.path, ref=self.ref)
 
 
 def parse_remote_path(action_name):
@@ -58,24 +78,41 @@ def get_filepath(current, filepath, filetype=None):
     >>> remotefile_current = RemoteFilePath('user', 'repo', 'ref', 'abc.yaml')
 
     Local path on local current becomes a local path.
-    >>> get_filepath(localfile_current, './.github/actions/blah')
+    >>> fp = get_filepath(localfile_current, './.github/actions/blah')
+    >>> fp
     LocalFilePath(repo_root=PosixPath('/path'), path=PosixPath('.github/actions/blah'))
+    >>> str(fp)
+    '/path/.github/actions/blah'
 
-    >>> get_filepath(localfile_current, '/blah', 'action')
+    >>> fp = get_filepath(localfile_current, '/blah', 'action')
+    >>> fp
     LocalFilePath(repo_root=PosixPath('/path'), path=PosixPath('.github/includes/actions/blah'))
+    >>> str(fp)
+    '/path/.github/includes/actions/blah'
 
-    >>> get_filepath(localfile_current, '/blah', 'workflow')
+    >>> fp = get_filepath(localfile_current, '/blah', 'workflow')
+    >>> fp
     LocalFilePath(repo_root=PosixPath('/path'), path=PosixPath('.github/includes/workflows/blah'))
+    >>> str(fp)
+    '/path/.github/includes/workflows/blah'
 
     Local path on current remote gets converted to a remote path.
-    >>> get_filepath(remotefile_current, './.github/actions/blah')
+    >>> fp = get_filepath(remotefile_current, './.github/actions/blah')
+    >>> fp
     RemoteFilePath(user='user', repo='repo', ref='ref', path='.github/actions/blah')
+    >>> str(fp)
+    'user/repo/.github/actions/blah@ref'
 
-    >>> get_filepath(remotefile_current, '/blah', 'workflow')
+    >>> fp = get_filepath(remotefile_current, '/blah', 'workflow')
+    >>> fp
     RemoteFilePath(user='user', repo='repo', ref='ref', path='.github/includes/workflows/blah')
+    >>> str(fp)
+    'user/repo/.github/includes/workflows/blah@ref'
+
     """
 
     # Resolve '/$XXX' to './.github/actions/$XXX'
+    assert isinstance(filepath, str), (type(filepath), filepath)
     if filepath.startswith('/'):
         assert filetype is not None, (current, filepath, filetype)
         filepath = '/'.join(
