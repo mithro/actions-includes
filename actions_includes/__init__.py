@@ -59,7 +59,11 @@ ACTION_YAML_NAMES = [
 
 
 def get_action_data(current_action, action_name):
-    action_dirpath = get_filepath(current_action, action_name, 'action')
+    if isinstance(action_name, str):
+        action_dirpath = get_filepath(current_action, action_name, 'action')
+    else:
+        assert isinstance(action_name, files.FilePath), (type(action_name), action_name)
+        action_dirpath = action_name
     printerr("get_action_data:", current_action, action_name, action_dirpath)
 
     errors = {}
@@ -285,36 +289,67 @@ def get_if_exp(d):
     return exp.parse(v)
 
 
-def build_inputs(target_yamldata, include_yamldata):
+def resolve_paths(root_filepath, data):
+    assert isinstance(root_filepath, files.FilePath), (type(root_filepath), root_filepath)
+    assert isinstance(data, dict), (type(data), data)
+    for k, v in data.items():
+        if isinstance(v, dict):
+            resolve_paths(root_filepath, v)
+            continue
+
+        assert isinstance(k, str), (type(k), k)
+        if not k.startswith('includes'):
+            continue
+
+        assert isinstance(v, str), (type(v), v)
+        data[k] = files.get_filepath(root_filepath, v, filetype='action')
+
+
+
+def build_inputs(target_yamldata, include_yamldata, current_filepath):
     """
 
     >>> def w(**kw):
     ...     return {'with': kw}
 
     >>> target = {'inputs': {'arg1': {'default': 1}, 'arg2': {'required': True}}}
-    >>> p(build_inputs(target, w(arg1=2, arg2=3)))
+    >>> p(build_inputs(target, w(arg1=2, arg2=3), None))
     {'arg1': 2, 'arg2': 3}
-    >>> p(build_inputs(target, w(arg2=3)))
+    >>> p(build_inputs(target, w(arg2=3), None))
     {'arg1': 1, 'arg2': 3}
 
-    >>> p(build_inputs(target, w(arg1=4)))
+    >>> p(build_inputs(target, w(arg1=4), None))
     Traceback (most recent call last):
         ...
     KeyError: "with statement was missing required argument 'arg2'...
 
-    >>> p(build_inputs(target, w(arg1=2, arg2=3, arg3=4)))
+    >>> p(build_inputs(target, w(arg1=2, arg2=3, arg3=4), None))
     Traceback (most recent call last):
         ...
     KeyError: 'with statement had unused extra arguments: arg3: 4'
 
-    >>> p(build_inputs(target, w(arg1=2, arg2=3, arg3=4, arg4='a')))
+    >>> p(build_inputs(target, w(arg1=2, arg2=3, arg3=4, arg4='a'), None))
     Traceback (most recent call last):
         ...
     KeyError: "with statement had unused extra arguments: arg3: 4, arg4: 'a'"
+
+    >>> target = {'inputs': {'args1': None}}
+    >>> lp = LocalFilePath(repo_root='/path', path='.github/actions/blah')
+    >>> rp = RemoteFilePath(user='user', repo='repo', ref='ref', path='.github/includes/workflows/blah')
+    >>> p(build_inputs(target, w(args1={'includes': '/a'}), lp))
+    {'args1': {'includes': LocalFilePath(repo_root=PosixPath('/path'), path=PosixPath('.github/includes/actions/a'))}}
+    >>> p(build_inputs(target, w(args1={'includes': '/a'}), rp))
+    {'args1': {'includes': RemoteFilePath(user='user', repo='repo', ref='ref', path='.github/includes/actions/a')}}
+
     """
 
     # Calculate the inputs dictionary
     with_data = copy.copy(include_yamldata.get('with', {}))
+
+    # FIXME: This is a hack to make sure that paths used in include values are
+    # relative to the file they are defined in, not the place they are used.
+    if current_filepath is not None:
+        resolve_paths(current_filepath, with_data)
 
     inputs = {}
     for in_name, in_info in target_yamldata.get('inputs', {}).items():
@@ -376,7 +411,7 @@ def expand_step_includes(current_filepath, include_step):
     assert 'steps' in include_yamldata['runs'], pprint.pformat(include_yamldata)
 
     try:
-        input_data = build_inputs(include_yamldata, include_step)
+        input_data = build_inputs(include_yamldata, include_step, current_filepath)
     except KeyError as e:
         raise SyntaxError('{}: {} while processing {} included with\n{}'.format(
             current_filepath, e, include_filepath, pprint.pformat(include_step)))
@@ -517,7 +552,7 @@ def expand_job_include(current_filepath, include_job):
     assert 'jobs' in include_yamldata, pprint.pformat(include_yamldata)
 
     try:
-        input_data = build_inputs(include_yamldata, include_job)
+        input_data = build_inputs(include_yamldata, include_job, current_filepath)
     except KeyError as e:
         raise SyntaxError('{} while processing {} included with:\n{}'.format(
             e, include_filepath, pprint.pformat(include_job)))
