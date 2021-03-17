@@ -128,9 +128,6 @@ def get_workflow_data(current_workflow, jobs_name):
 # -----------------------------------------------------------------------------
 
 
-RE_EXP = re.compile('\\${{(.*?)}}', re.DOTALL)
-
-
 def expand_input_expressions(yaml_item, context):
     """
 
@@ -248,24 +245,10 @@ def expand_input_expressions(yaml_item, context):
     elif isinstance(yaml_item, exp.Expression):
         new_yaml_item = exp.simplify(yaml_item, context)
     elif isinstance(yaml_item, str):
-        yaml_item_stripped = yaml_item.strip()
-
-        exp_bits = yaml_item_stripped[:3] + yaml_item_stripped[-2:]
-        mid_bits = yaml_item_stripped[3:-2]
-
-        if exp_bits == '${{}}' and '${{' not in mid_bits:
-            new_yaml_item = exp.parse(yaml_item_stripped)
-            new_yaml_item = exp.simplify(new_yaml_item, context)
+        if '${{' in yaml_item:
+            new_yaml_item = exp.eval(yaml_item, context)
         else:
-            def replace_exp(m):
-                e = m.group(1).strip()
-                v = exp.simplify(e, context)
-                if isinstance(v, exp.Expression):
-                    return '${{ %s }}' % (v,)
-                else:
-                    return str(v)
-
-            new_yaml_item = RE_EXP.sub(replace_exp, yaml_item)
+            new_yaml_item = yaml_item
     elif isinstance(yaml_item, (bool, int, float, None.__class__)):
         return yaml_item
     else:
@@ -332,6 +315,9 @@ def build_inputs(target_yamldata, include_yamldata):
 
     inputs = {}
     for in_name, in_info in target_yamldata.get('inputs', {}).items():
+        if not in_info:
+            in_info = {}
+
         marker = {}
         v = marker
 

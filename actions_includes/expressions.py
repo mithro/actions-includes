@@ -1170,3 +1170,45 @@ def parse(s):
             assert exp.endswith('}}'), exp
             return simplify(exp[3:-2].strip())
     return s
+
+
+RE_EXP = re.compile('\\${{(.*?)}}', re.DOTALL)
+
+
+def eval(s, context):
+    """
+
+    >>> eval('Hello', {})
+    'Hello'
+
+    >>> eval('Hello ${{ a }}! You are ${{ b }}.', {'a': 'world', 'b': 'awesome'})
+    'Hello world! You are awesome.'
+
+    >>> eval('Hello ${{ a }}! You are ${{ b }}.', {'a': 1, 'b': 2})
+    'Hello 1! You are 2.'
+
+    >>> eval('${{ a }}', {'a': 1})
+    1
+
+    >>> eval(' ${{ a }}', {'a': 1})
+    ' 1'
+
+    """
+
+    exp_bits = s[:3] + s[-2:]
+    mid_bits = s[3:-2]
+    if exp_bits == '${{}}' and '${{' not in mid_bits:
+        newe = parse(s)
+        return simplify(newe, context)
+
+    assert isinstance(s, str), (type(s), repr(s))
+    def replace_exp(m):
+        e = m.group(1).strip()
+        v = simplify(e, context)
+        if isinstance(v, Expression):
+            return '${{ %s }}' % (v,)
+        else:
+            return str(v)
+
+    new_s = RE_EXP.sub(replace_exp, s)
+    return new_s
