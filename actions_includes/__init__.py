@@ -288,23 +288,26 @@ def get_if_exp(d):
 def build_inputs(target_yamldata, include_yamldata):
     """
 
+    >>> def w(**kw):
+    ...     return {'with': kw}
+
     >>> target = {'inputs': {'arg1': {'default': 1}, 'arg2': {'required': True}}}
-    >>> p(build_inputs(target, {'with': {'arg1': 2, 'arg2': 3}}))
+    >>> p(build_inputs(target, w(arg1=2, arg2=3)))
     {'arg1': 2, 'arg2': 3}
-    >>> p(build_inputs(target, {'with': {'arg2': 3}}))
+    >>> p(build_inputs(target, w(arg2=3)))
     {'arg1': 1, 'arg2': 3}
 
-    >>> p(build_inputs(target, {'with': {'arg1': 2}}))
+    >>> p(build_inputs(target, w(arg1=4)))
     Traceback (most recent call last):
         ...
     KeyError: "with statement was missing required argument 'arg2'...
 
-    >>> p(build_inputs(target, {'with': {'arg1': 2, 'arg2': 3, 'arg3': 4}}))
+    >>> p(build_inputs(target, w(arg1=2, arg2=3, arg3=4)))
     Traceback (most recent call last):
         ...
     KeyError: 'with statement had unused extra arguments: arg3: 4'
 
-    >>> p(build_inputs(target, {'with': {'arg1': 2, 'arg2': 3, 'arg3': 4, 'arg4': 'a'}}))
+    >>> p(build_inputs(target, w(arg1=2, arg2=3, arg3=4, arg4='a')))
     Traceback (most recent call last):
         ...
     KeyError: "with statement had unused extra arguments: arg3: 4, arg4: 'a'"
