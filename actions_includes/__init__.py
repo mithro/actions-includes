@@ -390,6 +390,22 @@ def build_inputs(target_yamldata, include_yamldata, current_filepath):
 # -----------------------------------------------------------------------------
 
 
+def add_github_context(context):
+    github = {}
+    for k in os.environ.keys():
+        if not k.startswith('GITHUB_'):
+            continue
+        github[k[7:].lower()] = os.environ[k]
+
+    if not github:
+        # FIXME: pull the data from the local git repository.
+        github['sha'] = git_root_output = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'])
+
+    assert not 'github' in context, pprint.format(context)
+    context['github'] = github
+
+
 def step_type(m):
     if 'run' in m:
         return 'run'
