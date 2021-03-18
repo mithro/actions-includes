@@ -21,7 +21,6 @@ import os.path
 import pathlib
 import urllib
 import urllib.request
-import yaml
 
 from collections import namedtuple
 
