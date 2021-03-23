@@ -22,24 +22,18 @@ import hashlib
 import os
 import pathlib
 import pprint
-import re
 import subprocess
-import tempfile
+import argparse
 
-from collections import defaultdict
 
 from ruamel import yaml
 from ruamel.yaml import resolver
 from ruamel.yaml import util
-from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.constructor import RoundTripConstructor
-from ruamel.yaml.nodes import MappingNode
-from ruamel.yaml.scalarstring import PlainScalarString
 
-from pprint import pprint as p
 
 from . import expressions as exp
-from .files import LocalFilePath, RemoteFilePath
+from .files import LocalFilePath
 from .files import get_filepath
 from .files import get_filepath_data
 from .output import printerr, printdbg
@@ -988,7 +982,17 @@ def expand_workflow(current_workflow, to_path):
     return '\n'.join(output)
 
 
-def main(args):
+def main():
+    ap = argparse.ArgumentParser(
+        prog="actions-includes",
+        description="Allows including an action inside another action")
+    ap.add_argument("in_workflow", metavar="input-workflow", type=str,
+        help="Path to input workflow relative to repo root")
+    ap.add_argument("out_workflow", metavar="output-workflow", type=str,
+        help="Path where flattened workflow will be written, relative to repo root")
+    ap.add_argument("--no-check", action="store_true")
+    args = ap.parse_args()
+
     tfile = None
     try:
         git_root_output = subprocess.check_output(
@@ -997,7 +1001,8 @@ def main(args):
         repo_root = pathlib.Path(git_root_output.decode(
             'utf-8').strip()).resolve()
 
-        _, from_filename, to_filename = args
+        from_filename = args.in_workflow
+        to_filename = args.out_workflow
 
         from_path = pathlib.Path(from_filename).resolve().relative_to(repo_root)
         if to_filename == '-':
