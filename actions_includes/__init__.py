@@ -888,7 +888,7 @@ pprint.PrettyPrinter._dispatch[yaml.comments.CommentedSet.__repr__] = commenteds
 # ==============================================================
 
 
-def expand_workflow(current_workflow, to_path):
+def expand_workflow(current_workflow, to_path, insert_check_steps: bool):
     src_path = os.path.relpath('/'+str(current_workflow.path), start='/'+str(os.path.dirname(to_path)))
     if isinstance(current_workflow, LocalFilePath):
         dst_path = current_workflow.repo_root / to_path
@@ -969,7 +969,8 @@ def expand_workflow(current_workflow, to_path):
         assert isinstance(steps, list), pprint.pformat(j)
 
         for s in reversed(to_insert):
-            steps.insert(0, s)
+            if insert_check_steps:
+                steps.insert(0, s)
 
     printdbg('')
     printdbg('Final yaml data:')
@@ -1003,6 +1004,7 @@ def main():
 
         from_filename = args.in_workflow
         to_filename = args.out_workflow
+        insert_check = not args.no_check
 
         from_path = pathlib.Path(from_filename).resolve().relative_to(repo_root)
         if to_filename == '-':
@@ -1027,7 +1029,7 @@ def main():
             to_path = to_abspath.relative_to(repo_root)
 
         current_action = LocalFilePath(repo_root, str(from_path))
-        out_data = expand_workflow(current_action, to_path)
+        out_data = expand_workflow(current_action, to_path, insert_check)
 
         with open(to_abspath, 'w') as f:
             f.write(out_data)
