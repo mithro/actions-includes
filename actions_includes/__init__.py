@@ -890,10 +890,6 @@ pprint.PrettyPrinter._dispatch[yaml.comments.CommentedSet.__repr__] = commenteds
 
 def expand_workflow(current_workflow, to_path, insert_check_steps: bool):
     src_path = os.path.relpath('/'+str(current_workflow.path), start='/'+str(os.path.dirname(to_path)))
-    if isinstance(current_workflow, LocalFilePath):
-        dst_path = current_workflow.repo_root / to_path
-    else:
-        dst_path = to_path
 
     workflow_filepath = get_filepath(current_workflow, './'+str(current_workflow.path))
     printerr('Expanding workflow file from:', workflow_filepath)
@@ -991,7 +987,8 @@ def main():
         help="Path to input workflow relative to repo root")
     ap.add_argument("out_workflow", metavar="output-workflow", type=str,
         help="Path where flattened workflow will be written, relative to repo root")
-    ap.add_argument("--no-check", action="store_true")
+    ap.add_argument("--no-check", action="store_true",
+        help="Don't insert extra step in jobs to check that the workflow is up to date")
     args = ap.parse_args()
 
     tfile = None
