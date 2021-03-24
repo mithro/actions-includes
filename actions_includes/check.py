@@ -19,10 +19,10 @@
 
 import os
 import sys
-import tempfile
 import urllib.request
 import pathlib
 import difflib
+import argparse
 
 
 import actions_includes
@@ -39,15 +39,20 @@ def get_file(filename):
     return urllib.request.urlopen(workflow_url).read().decode('utf-8')
 
 
-def main(argv):
+def main():
+    ap = argparse.ArgumentParser(
+        prog="check",
+        description="Assert a workflow produced by actions-includes is up to date")
+    ap.add_argument("workflow", type=str,
+        help="Path to workflow file to check, relative to repo root")
+    args = ap.parse_args()
+
     global USER, REPO
     global SHA
     USER, REPO = os.environ['GITHUB_REPOSITORY'].split('/', 1)
     SHA = os.environ['GITHUB_SHA']
 
-    assert len(argv) == 2, argv
-    workflow_file = argv[1]
-
+    workflow_file = args.workflow
     workflow_data = get_file(workflow_file)
 
     # Workout what the source workflow file name was
@@ -67,7 +72,7 @@ def main(argv):
     print()
     print('Source of', workflow_file, 'is', workflow_srcfile, 'found at', workflow_src)
     print()
-    new_workflow_data = actions_includes.expand_workflow(workflow_src, workflow_file)
+    new_workflow_data = actions_includes.expand_workflow(workflow_src, workflow_file, True)
     print()
     print('Workflow file at', workflow_file, 'should be:')
     print('-'*75)
@@ -92,4 +97,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    sys.exit(main())
