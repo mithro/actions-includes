@@ -42,6 +42,8 @@ jobs:
       continue-on-error: false
       with:
         workflow: .github/workflows/test.workflows-basic.yml
+      env:
+        DOCKER_BUILDKIT: 1
     - id: wait
       name: Wait for Docker Image build
       uses: fountainhead/action-wait-for-check@v1.0.0
@@ -74,6 +76,8 @@ jobs:
       continue-on-error: false
       with:
         workflow: .github/workflows/test.workflows-basic.yml
+      env:
+        DOCKER_BUILDKIT: 1
     - name: First step
       run: |
         echo "First job"
@@ -96,6 +100,8 @@ jobs:
       continue-on-error: false
       with:
         workflow: .github/workflows/test.workflows-basic.yml
+      env:
+        DOCKER_BUILDKIT: 1
     - name: First step
       run: |
         echo "First job"
@@ -121,6 +127,8 @@ jobs:
       continue-on-error: false
       with:
         workflow: .github/workflows/test.workflows-basic.yml
+      env:
+        DOCKER_BUILDKIT: 1
     - name: Middle step
       run: |
         echo "Hello World"
@@ -142,6 +150,8 @@ jobs:
       continue-on-error: false
       with:
         workflow: .github/workflows/test.workflows-basic.yml
+      env:
+        DOCKER_BUILDKIT: 1
     - name: First step
       run: |
         echo "First job"
@@ -167,6 +177,8 @@ jobs:
       continue-on-error: false
       with:
         workflow: .github/workflows/test.workflows-basic.yml
+      env:
+        DOCKER_BUILDKIT: 1
     - name: Middle step
       run: |
         echo "Hello World"
@@ -192,6 +204,8 @@ jobs:
       continue-on-error: false
       with:
         workflow: .github/workflows/test.workflows-basic.yml
+      env:
+        DOCKER_BUILDKIT: 1
     - name: Last step
       run: |
         echo "Last job!"
@@ -212,6 +226,8 @@ jobs:
       continue-on-error: false
       with:
         workflow: .github/workflows/test.workflows-basic.yml
+      env:
+        DOCKER_BUILDKIT: 1
     - name: First step
       run: |
         echo "First job"
@@ -234,6 +250,8 @@ jobs:
       continue-on-error: false
       with:
         workflow: .github/workflows/test.workflows-basic.yml
+      env:
+        DOCKER_BUILDKIT: 1
     - name: First step
       run: |
         echo "First job"
@@ -259,6 +277,8 @@ jobs:
       continue-on-error: false
       with:
         workflow: .github/workflows/test.workflows-basic.yml
+      env:
+        DOCKER_BUILDKIT: 1
     - name: Middle step
       run: |
         echo "Hello World"
@@ -284,6 +304,8 @@ jobs:
       continue-on-error: false
       with:
         workflow: .github/workflows/test.workflows-basic.yml
+      env:
+        DOCKER_BUILDKIT: 1
     - name: Last step
       run: |
         echo "Last job!"

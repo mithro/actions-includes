@@ -42,6 +42,8 @@ jobs:
       continue-on-error: false
       with:
         workflow: .github/workflows/test.actions-ifexpands.yml
+      env:
+        DOCKER_BUILDKIT: 1
     - id: wait
       name: Wait for Docker Image build
       uses: fountainhead/action-wait-for-check@v1.0.0
@@ -79,6 +81,8 @@ jobs:
       continue-on-error: false
       with:
         workflow: .github/workflows/test.actions-ifexpands.yml
+      env:
+        DOCKER_BUILDKIT: 1
     - name: First step
       if: ${{ matrix.use-first }}
       run: |
