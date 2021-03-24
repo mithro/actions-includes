@@ -25,15 +25,17 @@ import pprint
 import subprocess
 import argparse
 
-
 from ruamel import yaml
 from ruamel.yaml import resolver
 from ruamel.yaml import util
+from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.constructor import RoundTripConstructor
+from ruamel.yaml.nodes import MappingNode
 
+from pprint import pprint as p
 
 from . import expressions as exp
-from .files import LocalFilePath
+from .files import LocalFilePath, RemoteFilePath
 from .files import get_filepath
 from .files import get_filepath_data
 from .output import printerr, printdbg
