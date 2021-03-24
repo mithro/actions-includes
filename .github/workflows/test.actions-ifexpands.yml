@@ -28,7 +28,16 @@ jobs:
   docker-image-build:
     runs-on: ubuntu-20.04
     steps:
-    - uses: mithro/actions-includes@main
+    - name: ⏰ 📝 - Get source code
+      uses: actions/checkout@v2
+    - name: ⏰ 📝 - Setting up Python for local docker build
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+    - name: ⏰ 📝 - Setting up remaining bit for local docker build
+      uses: ./.github/includes/actions/prepare-for-docker-build
+    - name: ⏰ 🛂 📖 - Checking workflow expansion is up to date (local)
+      uses: ./.github/includes/actions/local
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
@@ -56,7 +65,16 @@ jobs:
         use-last: [true, false]
     runs-on: ubuntu-20.04
     steps:
-    - uses: mithro/actions-includes@main
+    - name: ⏰ 📝 - Get source code
+      uses: actions/checkout@v2
+    - name: ⏰ 📝 - Setting up Python for local docker build
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+    - name: ⏰ 📝 - Setting up remaining bit for local docker build
+      uses: ./.github/includes/actions/prepare-for-docker-build
+    - name: ⏰ 🛂 📖 - Checking workflow expansion is up to date (local)
+      uses: ./.github/includes/actions/local
       if: runner.os == 'Linux'
       continue-on-error: false
       with:
