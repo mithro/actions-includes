@@ -33,6 +33,9 @@ jobs:
           - 5000:5000
 
     steps:
+    - name: Dump context
+      uses: crazy-max/ghaction-dump-context@main
+
     - uses: actions/checkout@v2
       with:
         # Always clone the full depth so git-describe works.
