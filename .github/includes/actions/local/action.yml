@@ -14,10 +14,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# WARNING! Don't modify this file, modify
-#  ./.github/includes/actions/local/action.yml
-# and then run `make action.yml`.
-
 name: actions-includes
 description: 'Allow actions to include other actions.'
 inputs:
@@ -26,6 +22,6 @@ inputs:
     required: true
 runs:
   using: 'docker'
-  image: docker://ghcr.io/mithro/actions-includes/image:main
+  image: ../../../../docker/Dockerfile
   args:
     - ${{ inputs.workflow }}

@@ -33,44 +33,18 @@ jobs:
           - 5000:5000
 
     steps:
-    - name: Dump context
-      uses: crazy-max/ghaction-dump-context@main
-
     - uses: actions/checkout@v2
       with:
         # Always clone the full depth so git-describe works.
         fetch-depth: 0
         submodules: true
 
-    - name: Set up Python 🐍 ${{ matrix.python-version }}
+    - name: Set up Python 🐍
       uses: actions/setup-python@v2
       with:
         python-version: 3.9
 
-    - name: Install build dependencies
-      run: |
-        pip install -U pip
-        pip install -U setuptools wheel twine
-
-    - name: Install package dependencies
-      run: |
-        python setup.py install
-
-    - name: Build distribution 📦
-      run: |
-        python setup.py sdist bdist_wheel
-
-    - name: Check distribution 📦
-      run: |
-        twine check dist/*
-
-#    - name: Check the docker image
-#      run: |
-#        make image-test
-
-    - name: Copy into docker
-      run: |
-        cp dist/* ./docker/
+    - uses: ./.github/includes/actions/prepare-for-docker-build
 
     - name: Push To
       id: push_to

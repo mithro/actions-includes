@@ -14,18 +14,33 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# WARNING! Don't modify this file, modify
-#  ./.github/includes/actions/local/action.yml
-# and then run `make action.yml`.
+name: Prepare the data to build the Docker image
 
-name: actions-includes
-description: 'Allow actions to include other actions.'
-inputs:
-  workflow:
-    description: 'Workflow file to check include expansion'
-    required: true
 runs:
-  using: 'docker'
-  image: docker://ghcr.io/mithro/actions-includes/image:main
-  args:
-    - ${{ inputs.workflow }}
+  using: "composite"
+  steps:
+  - name: Install build dependencies
+    shell: bash
+    run: |
+      pip install -U pip
+      pip install -U setuptools wheel twine
+
+  - name: Install package dependencies
+    shell: bash
+    run: |
+      python setup.py install
+
+  - name: Build distribution 📦
+    shell: bash
+    run: |
+      python setup.py sdist bdist_wheel
+
+  - name: Check distribution 📦
+    shell: bash
+    run: |
+      twine check dist/*
+
+  - name: Copy into dist into docker build directory
+    shell: bash
+    run: |
+      cp dist/* ./docker/

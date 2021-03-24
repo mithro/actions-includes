@@ -930,20 +930,52 @@ def expand_workflow(current_workflow, to_path):
         new_data[k] = v
     data = new_data
 
+    to_insert = []
+
+    is_actions_include = os.environ.get('GITHUB_REPOSITORY', '').endswith('/actions-includes')
+    if is_actions_include:
+        # Checkout the repo
+        to_insert.append({
+            'name': '⏰ 📝 - Get source code',
+            'uses': 'actions/checkout@v2',
+        })
+        # Setup python
+        to_insert.append({
+            'name': '⏰ 📝 - Setting up Python for local docker build',
+            'uses': 'actions/setup-python@v2',
+            'with': {'python-version': 3.9},
+        })
+        # Prepare for building the docker image locally
+        to_insert.append({
+            'name': '⏰ 📝 - Setting up remaining bit for local docker build',
+            'uses': './.github/includes/actions/prepare-for-docker-build',
+        })
+        # Use the local docker image
+        include_action = './.github/includes/actions/local'
+        include_name = '⏰ 🛂 📖 - Checking workflow expansion is up to date (local)'
+    else:
+        # Use the action at mithro/actions-includes
+        include_action_name = INCLUDE_ACTION_NAME
+        include_name = '⏰ 🛂 📕 - Checking workflow expansion is up to date'
+
+    to_insert.append({
+        'name': include_name,
+        'uses': include_action,
+        # FIXME: This check should run on all platforms.
+        'if': "runner.os == 'Linux'",
+        'continue-on-error': False,
+        'with': {
+            'workflow': str(to_path),
+        },
+    })
+
     for j in data['jobs'].values():
         assert 'steps' in j, pprint.pformat(j)
         steps = j['steps']
         assert isinstance(steps, list), pprint.pformat(j)
 
-        steps.insert(0, {
-            'uses': INCLUDE_ACTION_NAME,
-            # FIXME: This check should run on all platforms.
-            'if': "runner.os == 'Linux'",
-            'continue-on-error': False,
-            'with': {
-                'workflow': str(to_path),
-            },
-        })
+        for s in reversed(to_insert):
+            steps.insert(0, s)
 
     printdbg('')
     printdbg('Final yaml data:')

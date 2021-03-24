@@ -145,6 +145,7 @@ image-test: image
 # Update the GitHub action workflows
 WORKFLOWS = $(addprefix .github/workflows/test.,$(notdir $(wildcard ./tests/workflows/*.yml)))
 
+export GITHUB_REPOSITORY := mithro/actions-includes
 .github/workflows/test.%.yml: tests/workflows/%.yml actions_includes/__init__.py
 	@echo
 	@echo "Updating $@"
@@ -156,6 +157,10 @@ update-workflows: $(WORKFLOWS)
 	@true
 
 .PHONY: update-workflows
+
+
+action.yml: .github/includes/actions/local/action.yml .github/includes/actions/local/update-top.py
+	.github/includes/actions/local/update-top.py
 
 # Redirect anything else to setup.py
 %:
