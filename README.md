@@ -46,7 +46,7 @@ For example;
  - `{owner}/{repo}@{ref}` - Public action in `github.com/{owner}/{repo}`
  - `{owner}/{repo}/{path}@{ref}` - Public action under `{path}` in
    `github.com/{owner}/{repo}`.
- - `./{path}` - Local action under local `{path}, IE `./.github/actions/my-action`.
+ - `./{path}` - Local action under local `{path}`, IE `./.github/actions/my-action`.
 
 As it only makes sense to reference composite actions, the `docker://` form isn't supported.
 
