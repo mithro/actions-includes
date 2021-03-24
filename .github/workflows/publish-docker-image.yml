@@ -69,12 +69,43 @@ jobs:
       run: |
         cp dist/* ./docker/
 
+    - name: Push To
+      id: push_to
+      shell: python
+      env:
+        HAS_GHA_CR_TOKEN: ${{ secrets.GHA_CR_TOKEN != '' }}
+      run: |
+        import os
+
+        def g(k):
+            v = os.environ.get(k, 'MISSING-{}-VALUE'.format(k))
+            print("Got {}='{}'".format(k, v))
+            return v
+
+        gh_repo = g('GITHUB_REPOSITORY')
+        gh_event = g('GITHUB_EVENT_NAME')
+        has_cr_token = g('HAS_GHA_CR_TOKEN')
+
+        i = []
+
+        print("Adding local service.")
+        i.append("localhost:5000/"+gh_repo)
+
+        if gh_event == 'push' and has_cr_token == 'true':
+            print("Adding GitHub Container Repository (ghcr.io)")
+            i.append("ghcr.io/{}/image".format(gh_repo))
+        else:
+            print("Skipping GitHub Container Repository (ghcr.io)")
+
+        l = ",".join(i)
+        print("Final locations:", repr(l))
+        print("::set-output name=images::{}".format(l))
+
     - name: Docker meta
       id: docker_meta
       uses: crazy-max/ghaction-docker-meta@v1
       with:
-        images: ghcr.io/mithro/actions-includes/image,localhost:5000/mithro/actions-includes
-#        images: localhost:5000/mithro/actions-includes
+        images: ${{ steps.push_to.outputs.images }}
         tag-sha: true
 
     - name: Set up QEMU
@@ -86,7 +117,7 @@ jobs:
         driver-opts: network=host
 
     - name: Login to GHCR
-      if: github.event_name != 'pull_request'
+      if: ${{ contains(steps.push_to.outputs.images, 'ghcr.io') }}
       uses: docker/login-action@v1
       with:
         username: ${{ github.actor }}
@@ -104,7 +135,6 @@ jobs:
       with:
         context: docker
 #        platforms: linux/amd64,linux/arm64,linux/386
-#        push: ${{ github.event_name != 'pull_request' && secrets.GHA_CR_TOKEN != '' }}
         push: true
         tags: |
           ${{ steps.docker_meta.outputs.tags }}
@@ -113,4 +143,4 @@ jobs:
 
     - name: Inspect
       run: |
-        docker buildx imagetools inspect localhost:5000/mithro/actions-includes:latest
+        docker buildx imagetools inspect localhost:5000/$GITHUB_REPOSITORY:latest
