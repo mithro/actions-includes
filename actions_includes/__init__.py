@@ -955,7 +955,7 @@ def expand_workflow(current_workflow, to_path):
         include_name = '⏰ 🛂 📖 - Checking workflow expansion is up to date (local)'
     else:
         # Use the action at mithro/actions-includes
-        include_action_name = INCLUDE_ACTION_NAME
+        include_action = INCLUDE_ACTION_NAME
         include_name = '⏰ 🛂 📕 - Checking workflow expansion is up to date'
 
     to_insert.append({
