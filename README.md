@@ -1,5 +1,12 @@
 # actions-includes
 
+[![License](https://img.shields.io/github/license/mithro/actions-includes.svg)](https://github.com/mithro/actions-includes/blob/master/LICENSE)
+[![GitHub issues](https://img.shields.io/github/issues/mithro/actions-includes)](https://github.com/mithro/actions-includes/issues)
+![PyPI](https://img.shields.io/pypi/v/actions-includes)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/actions-includes)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/actions-includes)
+
+
 Allows including an action inside another action (by preprocessing the Yaml file).
 
 Instead of using `uses` or `run` in your action step, use the keyword `includes`.
