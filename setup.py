@@ -36,6 +36,7 @@ with open("README.md", "r") as fh:
 
 
 setuptools.setup(
+    # Package human readable information
     name="actions-includes",
     use_scm_version = get_version,
     author="Tim 'mithro' Ansell",
@@ -44,12 +45,29 @@ setuptools.setup(
 Tool for flattening include statements in GitHub actions workflow.yml files.""",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/mithro/actions-includes",
+    license="Apache 2.0",
+    license_files=["LICENSE"],
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: ISC License (ISCL)",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
+    url="https://github.com/mithro/actions-includes",
+    project_urls={
+        "Bug Tracker": "https://github.com/mithro/actions-includes/issues",
+        "Source Code": "https://github.com/mithro/actions-includes",
+    },
+    # Package contents control
+    packages=setuptools.find_packages(),
+    zip_safe=True,
+    include_package_data=True,
+    entry_points={
+        'console_scripts': [
+            'actions_include=actions_include:main',
+            'actions_include_check=actions_include.check:main',
+        ],
+    },
+    # Requirements
     python_requires='>=3.8', # Needs ordered dictionaries
     install_requires = [
         "ruamel.yaml",
@@ -59,13 +77,4 @@ Tool for flattening include statements in GitHub actions workflow.yml files.""",
         "wheel",
         "setuptools_scm[toml]>=3.4",
     ],
-    entry_points={
-        'console_scripts': ['fasm=fasm.tool:main'],
-    },
-    zip_safe=True,
-    packages=setuptools.find_packages(),
-    project_urls={
-        "Bug Tracker": "https://github.com/mithro/actions-includes/issues",
-        "Source Code": "https://github.com/mithro/actions-includes",
-    },
 )
