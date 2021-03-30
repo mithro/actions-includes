@@ -19,6 +19,9 @@
 FROM python:alpine
 
 RUN \
+	apk add --no-cache git
+
+RUN \
 	python --version \
 	&& pip --version
 
