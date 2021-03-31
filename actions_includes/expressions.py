@@ -116,6 +116,8 @@ def swizzle(l):
     >>> swizzle(['!', [1, '&&', 2, '&&', 3]])
     (<class 'exp.NotF'>, (<class 'exp.AndF'>, 1, (<class 'exp.AndF'>, 2, 3)))
 
+    >>> swizzle([(SuccessF,)])
+    (<class 'exp.SuccessF'>,)
 
     """
     if isinstance(l, (list, tuple)):
@@ -133,7 +135,7 @@ def swizzle(l):
 
             if b in INFIX_FUNCTIONS:
                 return (INFIX_FUNCTIONS[b], a, c)
-        if len(l) == 1:
+        if isinstance(l, list) and len(l) == 1:
             return swizzle(l[0])
     return l
 
@@ -183,6 +185,8 @@ def tokenizer(s):
     >>> p(tokenizer("manylinux-versions[inputs.python-version]"))
     Lookup('manylinux-versions', Lookup('inputs', 'python-version'))
 
+    >>> p(tokenizer('success()'))
+    (<class 'exp.SuccessF'>,)
     """
     try:
         tree = []
@@ -216,7 +220,7 @@ def tokenizer(s):
                 stack.append([])
                 continue
             elif i == ')':
-                    i = swizzle(stack.pop(-1))
+                i = swizzle(stack.pop(-1))
             if stack[-1]:
                 l = stack[-1][-1]
                 if str(l)+str(i) in INFIX_FUNCTIONS:
@@ -228,6 +232,10 @@ def tokenizer(s):
                     #r = l(i[0], i[2])
                     #print('Eval: {}({}, {}) = {}'.format(l, i[0], i[2], r))
                     stack[-1][-1] = (l, i[0], i[2])
+                    continue
+                elif isinstance(l, type) and issubclass(l, EmptyFunction):
+                    assert len(i) == 0, (l, i)
+                    stack[-1][-1] = (l,)
                     continue
             stack[-1].append(i)
 
@@ -310,6 +318,12 @@ def tokens_eval(t, context={}):
 
     >>> tokens_eval((OrF, True, Value('a')))
     True
+
+    >>> tokens_eval((SuccessF,))
+    success()
+
+    >>> tokens_eval((OrF, (SuccessF,), Value('a')))
+    or(success(), Value(a))
 
     >>> tokens_eval(Value("inputs"))
     Value(inputs)
@@ -421,6 +435,10 @@ class UnaryFunction(Function):
     def __str__(self):
         a = to_literal(self.a)
         return '{}({})'.format(self.name, a)
+
+
+# Operators
+# https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#operators
 
 
 class NotF(UnaryFunction):
@@ -731,6 +749,10 @@ class AndF(InfixFunction):
         return o
 
 
+# Functions
+# https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#functions
+
+
 NAMED_FUNCTIONS = {}
 
 
@@ -745,54 +767,9 @@ class NamedFunction(Function, metaclass=NamedFunctionMeta):
     name = None
 
 
-class StartsWithF(BinFunction, NamedFunction):
-    """
-
-    >>> StartsWithF('Hello world', 'He')
-    True
-    >>> StartsWithF('Hello world', 'Ho')
-    False
-    >>> repr(StartsWithF(Value('a'), 'Ho'))
-    "startsWith(Value(a), 'Ho')"
-    >>> str(StartsWithF(Value('a'), 'Ho'))
-    "startsWith(a, 'Ho')"
-    >>> str(StartsWithF(Value('a'), "M'lady"))
-    "startsWith(a, 'M''lady')"
-
-    """
-    name = 'startsWith'
-
-    @classmethod
-    def realf(cls, a, b):
-        assert isinstance(a, str), (a, b)
-        assert isinstance(b, str), (a, b)
-        return a.startswith(b)
-
-
-class EndsWithF(BinFunction, NamedFunction):
-    """
-
-    >>> EndsWithF('Hello world', 'He')
-    False
-    >>> EndsWithF('Hello world', 'ld')
-    True
-    >>> repr(EndsWithF(Value('a'), 'Ho'))
-    "endsWith(Value(a), 'Ho')"
-    >>> str(EndsWithF(Value('a'), 'Ho'))
-    "endsWith(a, 'Ho')"
-
-    """
-    name = 'endsWith'
-
-    @classmethod
-    def realf(cls, a, b):
-        assert isinstance(a, str), (a, b)
-        assert isinstance(b, str), (a, b)
-        return a.endswith(b)
-
-
 class ContainsF(BinFunction, NamedFunction):
     """
+    https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#contains
 
     >>> ContainsF('Hello world', 'mo')
     False
@@ -817,8 +794,61 @@ class ContainsF(BinFunction, NamedFunction):
         return b in a
 
 
+class StartsWithF(BinFunction, NamedFunction):
+    """
+    https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#startswith
+
+    >>> StartsWithF('Hello world', 'He')
+    True
+    >>> StartsWithF('Hello world', 'Ho')
+    False
+    >>> repr(StartsWithF(Value('a'), 'Ho'))
+    "startsWith(Value(a), 'Ho')"
+    >>> str(StartsWithF(Value('a'), 'Ho'))
+    "startsWith(a, 'Ho')"
+    >>> str(StartsWithF(Value('a'), "M'lady"))
+    "startsWith(a, 'M''lady')"
+
+    """
+    name = 'startsWith'
+
+    @classmethod
+    def realf(cls, a, b):
+        assert isinstance(a, str), (a, b)
+        assert isinstance(b, str), (a, b)
+        return a.startswith(b)
+
+
+class EndsWithF(BinFunction, NamedFunction):
+    """
+    https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#endswith
+
+    >>> EndsWithF('Hello world', 'He')
+    False
+    >>> EndsWithF('Hello world', 'ld')
+    True
+    >>> repr(EndsWithF(Value('a'), 'Ho'))
+    "endsWith(Value(a), 'Ho')"
+    >>> str(EndsWithF(Value('a'), 'Ho'))
+    "endsWith(a, 'Ho')"
+
+    """
+    name = 'endsWith'
+
+    @classmethod
+    def realf(cls, a, b):
+        assert isinstance(a, str), (a, b)
+        assert isinstance(b, str), (a, b)
+        return a.endswith(b)
+
+
+# FIXME: https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#format
+# FIXME: https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#join
+
+
 class ToJSONF(UnaryFunction, NamedFunction):
     """
+    https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#tojson
 
     >>> f = ToJSONF(Value('a'))
     >>> repr(f)
@@ -842,6 +872,7 @@ class ToJSONF(UnaryFunction, NamedFunction):
 
 class FromJSONF(UnaryFunction, NamedFunction):
     """
+    https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#fromjson
 
     >>> f = FromJSONF(Value('a'))
     >>> repr(f)
@@ -864,6 +895,71 @@ class FromJSONF(UnaryFunction, NamedFunction):
         return json.loads(a)
 
 
+# FIXME: https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#hashfiles
+
+
+# Job status check functions
+# https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#job-status-check-functions
+
+
+class EmptyFunction(Function):
+    @property
+    def args(self):
+        return []
+
+    @args.setter
+    def args(self, v):
+        v = list(v)
+        assert len(v) == 0, v
+
+    #def __new__(cls):
+    #    return Function.__new__(cls)
+
+    def __repr__(self):
+        return '{}()'.format(self.name)
+
+    def __str__(self):
+        return '{}()'.format(self.name)
+
+
+class SuccessF(EmptyFunction, NamedFunction):
+    """
+
+    >>> f = SuccessF()
+    >>> repr(f)
+    'success()'
+    >>> str(f)
+    'success()'
+    """
+    name = 'success'
+
+
+class AlwaysF(EmptyFunction, NamedFunction):
+    """
+
+    >>> f = AlwaysF()
+    >>> repr(f)
+    'always()'
+    >>> str(f)
+    'always()'
+    """
+    name = 'always'
+
+
+class CancelledF(EmptyFunction, NamedFunction):
+    """
+
+    >>> f = CancelledF()
+    >>> repr(f)
+    'cancelled()'
+    >>> str(f)
+    'cancelled()'
+    """
+    name = 'cancelled'
+
+
+
+# Variables in statements.
 class Var(Expression):
     pass
 
@@ -871,10 +967,13 @@ class Var(Expression):
 class Value(str, Var):
     """
     >>> p(NAMED_FUNCTIONS)
-    {'contains': <class 'exp.ContainsF'>,
+    {'always': <class 'exp.AlwaysF'>,
+     'cancelled': <class 'exp.CancelledF'>,
+     'contains': <class 'exp.ContainsF'>,
      'endswith': <class 'exp.EndsWithF'>,
      'fromjson': <class 'exp.FromJSONF'>,
      'startswith': <class 'exp.StartsWithF'>,
+     'success': <class 'exp.SuccessF'>,
      'tojson': <class 'exp.ToJSONF'>}
 
     >>> v = Value('hello')
@@ -1163,6 +1262,8 @@ def parse(s):
     >>> parse('')
     ''
 
+    >>> parse('${{ success() }}')
+    success()
     """
     if isinstance(s, str):
         exp = s.strip()
