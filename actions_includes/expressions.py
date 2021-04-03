@@ -187,6 +187,13 @@ def tokenizer(s):
 
     >>> p(tokenizer('success()'))
     (<class 'exp.SuccessF'>,)
+
+    >>> p(tokenizer('hashFiles()'))
+    (<class 'exp.HashFilesF'>,)
+    >>> p(tokenizer("hashFiles('**/package-lock.json')"))
+    (<class 'exp.HashFilesF'>, '**/package-lock.json')
+    >>> p(tokenizer("hashFiles('**/package-lock.json', '**/Gemfile.lock')"))
+    (<class 'exp.HashFilesF'>, '**/package-lock.json', '**/Gemfile.lock')
     """
     try:
         tree = []
@@ -232,6 +239,18 @@ def tokenizer(s):
                     #r = l(i[0], i[2])
                     #print('Eval: {}({}, {}) = {}'.format(l, i[0], i[2], r))
                     stack[-1][-1] = (l, i[0], i[2])
+                    continue
+                elif isinstance(l, type) and issubclass(l, VarArgsFunction):
+                    o = [l]
+                    if isinstance(i, (list, tuple)):
+                        for j, a in enumerate(i):
+                            if j % 2 == 1:
+                                assert a == ',', (j, a, i)
+                            else:
+                                o.append(a)
+                    else:
+                        o.append(i)
+                    stack[-1][-1] = tuple(o)
                     continue
                 elif isinstance(l, type) and issubclass(l, EmptyFunction):
                     assert len(i) == 0, (l, i)
@@ -376,6 +395,19 @@ class Function(Expression):
 
     def __deepcopy__(self, memo=None):
         return type(self)(*self.args)
+
+
+class VarArgsFunction(Function):
+    def __new__(cls, *args):
+        o = Function.__new__(cls)
+        o.args = args
+        return o
+
+    def __repr__(self):
+        return '{}({})'.format(self.name, ', '.join(repr(a) for a in self.args))
+
+    def __str__(self):
+        return '{}({})'.format(self.name, ', '.join(to_literal(a) for a in self.args))
 
 
 class BinFunction(Function):
@@ -895,7 +927,24 @@ class FromJSONF(UnaryFunction, NamedFunction):
         return json.loads(a)
 
 
-# FIXME: https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#hashfiles
+class HashFilesF(VarArgsFunction, NamedFunction):
+    """
+    https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#hashfiles
+
+    >>> f = HashFilesF(Value('a'))
+    >>> repr(f)
+    'hashFiles(Value(a))'
+    >>> str(f)
+    'hashFiles(a)'
+
+    >>> a = HashFilesF(Value('a'), Value('b'))
+    >>> repr(a)
+    'hashFiles(Value(a), Value(b))'
+    >>> str(a)
+    'hashFiles(a, b)'
+
+    """
+    name = 'hashFiles'
 
 
 # Job status check functions
@@ -972,6 +1021,7 @@ class Value(str, Var):
      'contains': <class 'exp.ContainsF'>,
      'endswith': <class 'exp.EndsWithF'>,
      'fromjson': <class 'exp.FromJSONF'>,
+     'hashfiles': <class 'exp.HashFilesF'>,
      'startswith': <class 'exp.StartsWithF'>,
      'success': <class 'exp.SuccessF'>,
      'tojson': <class 'exp.ToJSONF'>}
@@ -1264,6 +1314,13 @@ def parse(s):
 
     >>> parse('${{ success() }}')
     success()
+
+    >>> parse('${{ hashFiles() }}')
+    hashFiles()
+    >>> parse("${{ hashFiles('**/package-lock.json') }}")
+    hashFiles('**/package-lock.json')
+    >>> parse("${{ hashFiles('**/package-lock.json', '**/Gemfile.lock') }}")
+    hashFiles('**/package-lock.json', '**/Gemfile.lock')
     """
     if isinstance(s, str):
         exp = s.strip()
