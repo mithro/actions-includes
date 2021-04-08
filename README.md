@@ -95,3 +95,19 @@ File: `oworkflow.out.yml`
 
 The `shell` parameter is deduced from the file extension, but it is possible to
 use a custom shell by setting the `shell` parameter manually.
+
+## pre-commit hook
+When you use actions-includes, it may be useful to add a pre-commit hook 
+(see https://git-scm.com/docs/githooks) to your project so that your workflow 
+files are always pre-processed before they reach GitHub. There are multiple 
+projects (notably `pre-commit`; see https://pre-commit.com/) that support 
+adding pre-commit hooks. Alternatively, to add a pre-commit hook without
+installing another package, you can just create or modify `.git/hooks/pre-commit`
+(note: this path is relative to your project root). A sample file typically 
+lives at `.git/hooks/pre-commit.sample`.
+
+The pre-commit hook should run the commands that are necessary to pre-process
+your workflows. For example:
+> ```sh
+> python -m actions_includes.py workflow.in.yml workflow.out.yml 
+> ```
