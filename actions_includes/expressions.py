@@ -973,6 +973,7 @@ class EmptyFunction(Function):
 
 class SuccessF(EmptyFunction, NamedFunction):
     """
+    https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#success
 
     >>> f = SuccessF()
     >>> repr(f)
@@ -985,6 +986,7 @@ class SuccessF(EmptyFunction, NamedFunction):
 
 class AlwaysF(EmptyFunction, NamedFunction):
     """
+    https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#always
 
     >>> f = AlwaysF()
     >>> repr(f)
@@ -997,6 +999,7 @@ class AlwaysF(EmptyFunction, NamedFunction):
 
 class CancelledF(EmptyFunction, NamedFunction):
     """
+    https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#cancelled
 
     >>> f = CancelledF()
     >>> repr(f)
@@ -1005,6 +1008,19 @@ class CancelledF(EmptyFunction, NamedFunction):
     'cancelled()'
     """
     name = 'cancelled'
+
+
+class FailureF(EmptyFunction, NamedFunction):
+    """
+    https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#failure
+
+    >>> f = FailureF()
+    >>> repr(f)
+    'failure()'
+    >>> str(f)
+    'failure()'
+    """
+    name = 'failure'
 
 
 
@@ -1020,6 +1036,7 @@ class Value(str, Var):
      'cancelled': <class 'exp.CancelledF'>,
      'contains': <class 'exp.ContainsF'>,
      'endswith': <class 'exp.EndsWithF'>,
+     'failure': <class 'exp.FailureF'>,
      'fromjson': <class 'exp.FromJSONF'>,
      'hashfiles': <class 'exp.HashFilesF'>,
      'startswith': <class 'exp.StartsWithF'>,
