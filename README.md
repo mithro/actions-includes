@@ -50,6 +50,11 @@ For example;
 
 As it only makes sense to reference composite actions, the `docker://` form isn't supported.
 
+As you frequently want to include local actions, `actions-includes` extends the 
+`{action-name}` syntax to also support:
+
+ - `/{name}` - Local action under `./.github/actions/includes/{name}`.
+
 This is how composite actions should have worked.
 
 ## `includes-script:`
