@@ -52,14 +52,15 @@ As it only makes sense to reference composite actions, the `docker://` form isn'
 
 This is how composite actions should have worked.
 
-## `includes-script:` step
+## `includes-script:`
+You can include a script (e.g., a Python or shell script) in your workflow.yml file using the `includes-script` step.
 
-File: `script.py`
+Example script file: `script.py`
 > ```python
 > print('Hello world')
 > ```
 
-File: `workflow.yml`
+To include the script, reference it in an `includes-script` action in your `workflow.yml`, like so:
 > ```yaml
 > steps:
 > - name: Other step
@@ -74,9 +75,9 @@ File: `workflow.yml`
 >     command
 > ```
 
-`python -m actions_includes.py workflow.in.yml workflow.out.yml`
-
-File: `oworkflow.out.yml`
+When the workflow.yml is processed by running
+```python -m actions_includes.py workflow.in.yml workflow.out.yml```,
+the resultant `workflow.out.yml` looks like this:
 > ```yaml
 > steps:
 > - name: Other step
@@ -92,22 +93,51 @@ File: `oworkflow.out.yml`
 >   run: |
 >     command
 > ```
+The `shell` parameter is deduced from the file extension, 
+but it is possible to use a custom shell by setting the 
+`shell` parameter manually.
 
-The `shell` parameter is deduced from the file extension, but it is possible to
-use a custom shell by setting the `shell` parameter manually.
-
-## pre-commit hook
+## Using a pre-commit hook
 When you use actions-includes, it may be useful to add a pre-commit hook 
 (see https://git-scm.com/docs/githooks) to your project so that your workflow 
-files are always pre-processed before they reach GitHub. There are multiple 
-projects (notably `pre-commit`; see https://pre-commit.com/) that support 
-adding pre-commit hooks. Alternatively, to add a pre-commit hook without
-installing another package, you can just create or modify `.git/hooks/pre-commit`
-(note: this path is relative to your project root). A sample file typically 
+files are always pre-processed before they reach GitHub. 
+
+### With a git hooks package
+There are multiple packages (notably `pre-commit`; 
+see https://pre-commit.com/) that support adding pre-commit hooks.
+
+In the case of using the `pre-commit` package, you can add an entry 
+such as the following to your `pre-commit-config.yaml` file:
+> ```
+> - repo: local
+>   hooks:
+>   - id: preprocess-workflows
+>     name: Preprocess workflow.yml
+>     entry: python -m actions_includes.py workflow.in.yml workflow.out.yml
+>     language: system
+>     always-run: true
+> ```
+
+
+### Without a git hooks package
+Alternatively, to add a pre-commit hook without installing another 
+package, you can simply create or modify `.git/hooks/pre-commit`
+(relative to your project root). A sample file typically 
 lives at `.git/hooks/pre-commit.sample`.
 
-The pre-commit hook should run the commands that are necessary to pre-process
-your workflows. For example:
+The pre-commit hook should run the commands that are necessary to 
+pre-process your workflows. So, your `.git/hooks/pre-commit` file 
+might look something like this:
 > ```sh
-> python -m actions_includes.py workflow.in.yml workflow.out.yml 
+> #!/bin/bash
+>
+> python -m actions_includes.py workflow.in.yml workflow.out.yml || {
+>     echo "Failed to preprocess workflow file."""
+> }
 > ```
+
+To track this script in source code management, you'll have to
+put it in a non-ignored file in your project that is then copied to 
+`.git/hooks/pre-commit` as part of your project setup. See
+https://github.com/ModularHistory/modularhistory for an example
+of a project that does this with a setup script (`setup.sh`).
