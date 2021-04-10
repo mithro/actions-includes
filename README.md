@@ -118,7 +118,6 @@ such as the following to your `pre-commit-config.yaml` file:
 >     always-run: true
 > ```
 
-
 ### Without a git hooks package
 Alternatively, to add a pre-commit hook without installing another 
 package, you can simply create or modify `.git/hooks/pre-commit`
