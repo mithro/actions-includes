@@ -63,8 +63,8 @@ Tool for flattening include statements in GitHub actions workflow.yml files.""",
     include_package_data=True,
     entry_points={
         'console_scripts': [
-            'actions_include=actions_include:main',
-            'actions_include_check=actions_include.check:main',
+            'actions_includes=actions_include:main',
+            'actions_include_check=actions_includes.check:main',
         ],
     },
     # Requirements
