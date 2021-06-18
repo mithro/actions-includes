@@ -83,20 +83,16 @@ jobs:
       if: ${{ matrix.use-first }}
       run: |
         echo "First step!"
-
     - name: Middle step
       run: |
         echo "Hello World"
-
     - name: First step
       if: ${{ matrix.use-first }}
       run: |
         echo "First step!"
-
     - name: Middle step
       run: |
         echo "Hello World"
-
     - name: Last step
       if: ${{ matrix.use-first }}
       run: |
@@ -105,11 +101,9 @@ jobs:
       if: ${{ matrix.use-last }}
       run: |
         echo "First step!"
-
     - name: Middle step
       run: |
         echo "Hello World"
-
     - name: Last step
       if: ${{ matrix.use-last }}
       run: |
@@ -117,11 +111,9 @@ jobs:
     - name: First step
       run: |
         echo "First step!"
-
     - name: Middle step
       run: |
         echo "Hello World"
-
     - name: Last step
       if: ${{ matrix.use-last }}
       run: |

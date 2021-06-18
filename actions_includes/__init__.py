@@ -741,6 +741,7 @@ class RoundTripLoaderWithExp(
     def __init__(self, stream, version=None, preserve_quotes=None):
         # type: (StreamTextType, Optional[VersionType], Optional[bool]) -> None
         # self.reader = Reader.__init__(self, stream)
+        self.comment_handling = None  # issue 385
         yaml.reader.Reader.__init__(self, stream, loader=self)
         yaml.scanner.RoundTripScanner.__init__(self, loader=self)
         yaml.parser.RoundTripParser.__init__(self, loader=self)
