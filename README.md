@@ -18,6 +18,12 @@ Once you are using the `includes` argument, the workflows can be expanded using 
 python -m actions_includes ./.github/workflows-src/workflow-a.yml ./.github/workflows/workflow-a.yml
 ```
 
+## Usage with docker
+
+```sh
+docker container run --rm -it -v $(pwd):/github/workspace --entrypoint="" ghcr.io/mithro/actions-includes/image:main python -m actions_includes ./.github/workflows-src/workflow-a.yml ./.github/workflows/workflow-a.yml
+```
+
 ## `includes:` step
 
 ```yaml
