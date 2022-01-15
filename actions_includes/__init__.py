@@ -530,7 +530,11 @@ def expand_step_run(current_filepath, v):
 
 
 def expand_job_steps(current_filepath, job_data):
-    assert 'steps' in job_data, pprint.pformat(job_data)
+    if 'steps' not in job_data:
+        # make sure this job is using reusable workflows,
+        # which don't have steps
+        assert 'uses' in job_data, pprint.pformat(job_data)
+        return job_data
 
     steps = list((current_filepath, s) for s in job_data['steps'])
 
@@ -963,7 +967,11 @@ def expand_workflow(current_workflow, to_path, insert_check_steps: bool):
     })
 
     for j in data['jobs'].values():
-        assert 'steps' in j, pprint.pformat(j)
+        if 'steps' not in j:
+            # make sure this job is using reusable workflows,
+            # which don't have steps
+            assert 'uses' in j, pprint.pformat(j)
+            continue
         steps = j['steps']
         assert isinstance(steps, list), pprint.pformat(j)
 
