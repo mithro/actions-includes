@@ -158,6 +158,9 @@ def tokenizer(s):
     >>> p(tokenizer("inputs.use-me"))
     Lookup('inputs', 'use-me')
 
+    >>> p(tokenizer("fromJSON(env.test)"))
+    (<class 'exp.FromJSONF'>, Lookup('env', 'test'))
+
     >>> p(tokenizer("!startsWith(runner.os, 'Linux')"))
     (<class 'exp.NotF'>,
      (<class 'exp.StartsWithF'>, Lookup('runner', 'os'), 'Linux'))
@@ -239,6 +242,9 @@ def tokenizer(s):
                     #r = l(i[0], i[2])
                     #print('Eval: {}({}, {}) = {}'.format(l, i[0], i[2], r))
                     stack[-1][-1] = (l, i[0], i[2])
+                    continue
+                elif isinstance(l, type) and issubclass(l, UnaryFunction):
+                    stack[-1][-1] = (l, i)
                     continue
                 elif isinstance(l, type) and issubclass(l, VarArgsFunction):
                     o = [l]
