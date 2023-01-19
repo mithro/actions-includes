@@ -1,3 +1,14 @@
+
+# :warning: This project is **mostly** abandoned.
+
+You are probably better using
+[Composite Actions](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action)
+or
+[Reusable workflows](https://docs.github.com/en/actions/using-workflows/reusing-workflows).
+
+--------------------------------
+--------------------------------
+
 # actions-includes
 
 [![License](https://img.shields.io/github/license/mithro/actions-includes.svg)](https://github.com/mithro/actions-includes/blob/master/LICENSE)
