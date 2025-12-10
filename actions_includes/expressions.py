@@ -90,10 +90,10 @@ FLOAT = re.compile('^-?[0-9]+\\.[0-9]+$')
 HEX = re.compile('^0x[0-9a-fA-F]+$')
 EXP = re.compile('^(-?[0-9]+\\.\\[0-9]+)-?[eE]([0-9.]+)$')
 VALUE = re.compile('^[a-zA-Z][_a-zA-Z0-9\\-]*$')
-LOOKUP = re.compile('(?:\\.[a-zA-Z][_a-zA-Z0-9\\-]*)|(?:\\[[^\\]]+\\])')
+LOOKUP = re.compile('(?:\\.(?:[a-zA-Z][_a-zA-Z0-9\\-]*|\\*))|(?:\\[[^\\]]+\\])')
 
 S = "('[^']*')+"
-I = "[a-zA-Z.\\-0-9_\\[\\]]+"
+I = "[a-zA-Z.\\-0-9_\\[\\]*]+"
 
 BITS = re.compile('((?P<S>{})|(?P<I>{}))'.format(S, I))
 
