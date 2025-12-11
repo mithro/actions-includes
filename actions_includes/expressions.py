@@ -188,6 +188,9 @@ def tokenizer(s):
     >>> p(tokenizer("manylinux-versions[inputs.python-version]"))
     Lookup('manylinux-versions', Lookup('inputs', 'python-version'))
 
+    >>> p(tokenizer("contains(needs.*.result, 'failure')"))
+    (<class 'exp.ContainsF'>, Lookup('needs', '*', 'result'), 'failure')
+
     >>> p(tokenizer('success()'))
     (<class 'exp.SuccessF'>,)
 
@@ -1164,6 +1167,8 @@ def from_literal(v):
     Lookup('a', Lookup('b', 'c'))
     >>> from_literal("a.b.c")
     Lookup('a', 'b', 'c')
+    >>> from_literal("needs.*.result")
+    Lookup('needs', '*', 'result')
     >>> from_literal("a[b].c")
     Lookup('a', Value(b), 'c')
     >>> from_literal("a[b][c]")
