@@ -90,10 +90,10 @@ FLOAT = re.compile('^-?[0-9]+\\.[0-9]+$')
 HEX = re.compile('^0x[0-9a-fA-F]+$')
 EXP = re.compile('^(-?[0-9]+\\.\\[0-9]+)-?[eE]([0-9.]+)$')
 VALUE = re.compile('^[a-zA-Z][_a-zA-Z0-9\\-]*$')
-LOOKUP = re.compile('(?:\\.[a-zA-Z][_a-zA-Z0-9\\-]*)|(?:\\[[^\\]]+\\])')
+LOOKUP = re.compile('(?:\\.(?:[a-zA-Z][_a-zA-Z0-9\\-]*|\\*))|(?:\\[[^\\]]+\\])')
 
 S = "('[^']*')+"
-I = "[a-zA-Z.\\-0-9_\\[\\]]+"
+I = "[a-zA-Z.\\-0-9_\\[\\]*]+"
 
 BITS = re.compile('((?P<S>{})|(?P<I>{}))'.format(S, I))
 
@@ -187,6 +187,9 @@ def tokenizer(s):
 
     >>> p(tokenizer("manylinux-versions[inputs.python-version]"))
     Lookup('manylinux-versions', Lookup('inputs', 'python-version'))
+
+    >>> p(tokenizer("contains(needs.*.result, 'failure')"))
+    (<class 'exp.ContainsF'>, Lookup('needs', '*', 'result'), 'failure')
 
     >>> p(tokenizer('success()'))
     (<class 'exp.SuccessF'>,)
@@ -1164,6 +1167,8 @@ def from_literal(v):
     Lookup('a', Lookup('b', 'c'))
     >>> from_literal("a.b.c")
     Lookup('a', 'b', 'c')
+    >>> from_literal("needs.*.result")
+    Lookup('needs', '*', 'result')
     >>> from_literal("a[b].c")
     Lookup('a', Value(b), 'c')
     >>> from_literal("a[b][c]")
