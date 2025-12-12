@@ -32,14 +32,14 @@ inputs:
 
 jobs:
   FirstJob1:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: First step
       run: |
           echo "First job"
 
   FirstJob2:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     if: inputs.use-first
     steps:
     - name: First step
@@ -47,7 +47,7 @@ jobs:
           echo "First job"
 
   MiddleJob:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: FirstJob1
     steps:
     - name: Middle step
@@ -56,7 +56,7 @@ jobs:
 
   LastJob:
     if: inputs.use-last
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [FirstJob1, MiddleJob]
     steps:
     - name: Last step

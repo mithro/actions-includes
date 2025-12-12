@@ -20,13 +20,13 @@ on:
 
 jobs:
   docker-image-build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: /wait-on-docker-image
 
   test-setting-default-false-to-true:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - run: |
         echo "Pre-step"
@@ -39,7 +39,7 @@ jobs:
 
   test-setting-default-true-to-false:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - run: |
         echo "Pre-step"
@@ -52,7 +52,7 @@ jobs:
 
   test-basic:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: ./tests/includes/actions/basic
       with:
@@ -60,7 +60,7 @@ jobs:
 
   test-recursive-local-with-local:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: ./tests/includes/actions/recursive/local
       with:
@@ -76,7 +76,7 @@ jobs:
 
   test-recursive-local-with-remote:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: ./tests/includes/actions/recursive/remote
       with:
@@ -92,19 +92,19 @@ jobs:
 
   test-includes-script:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: ./tests/includes/actions/script
 
   test-recursive-remote-other:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: ./tests/includes/actions/recursive/remote-other
 
   test-include-some1:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: ./tests/includes/actions/sometimes
       with:
@@ -112,7 +112,7 @@ jobs:
 
   test-include-some2:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: ./tests/includes/actions/sometimes
       with:

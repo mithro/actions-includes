@@ -26,7 +26,7 @@ on:
   pull_request:
 jobs:
   docker-image-build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: ⏰ 📝 - Get source code
       uses: actions/checkout@v2
@@ -59,7 +59,7 @@ jobs:
         fi
   test-setting-default-false-to-true:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: ⏰ 📝 - Get source code
       uses: actions/checkout@v2
@@ -90,7 +90,7 @@ jobs:
         echo "Post-step"
   test-setting-default-true-to-false:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: ⏰ 📝 - Get source code
       uses: actions/checkout@v2
@@ -115,7 +115,7 @@ jobs:
         echo "Post-step"
   test-basic:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: ⏰ 📝 - Get source code
       uses: actions/checkout@v2
@@ -139,7 +139,7 @@ jobs:
         echo "Hello World"
   test-recursive-remote-with-local:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: ⏰ 📝 - Get source code
       uses: actions/checkout@v2
@@ -184,7 +184,7 @@ jobs:
         echo "Middle step"
   test-recursive-remote-with-remote:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: ⏰ 📝 - Get source code
       uses: actions/checkout@v2
@@ -229,7 +229,7 @@ jobs:
         echo "Middle step"
   test-other-location:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: ⏰ 📝 - Get source code
       uses: actions/checkout@v2
@@ -253,7 +253,7 @@ jobs:
         echo "Last step!"
   test-includes-script:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: ⏰ 📝 - Get source code
       uses: actions/checkout@v2
@@ -279,7 +279,7 @@ jobs:
       shell: bash
   test-recursive-remote-other:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: ⏰ 📝 - Get source code
       uses: actions/checkout@v2
@@ -332,7 +332,7 @@ jobs:
         echo "Middle step"
   test-include-some1:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: ⏰ 📝 - Get source code
       uses: actions/checkout@v2
@@ -359,7 +359,7 @@ jobs:
         echo "Goodbye!"
   test-include-some2:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - name: ⏰ 📝 - Get source code
       uses: actions/checkout@v2
