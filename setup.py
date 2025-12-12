@@ -70,7 +70,7 @@ Tool for flattening include statements in GitHub actions workflow.yml files.""",
     # Requirements
     python_requires='>=3.8', # Needs ordered dictionaries
     install_requires = [
-        "ruamel.yaml",
+        "ruamel.yaml<0.18",  # TODO: Update code to support ruamel.yaml 0.18+ API (see issue #50)
     ],
     setup_requires = [
         "setuptools>=42",
