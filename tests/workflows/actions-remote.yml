@@ -20,13 +20,13 @@ on:
 
 jobs:
   docker-image-build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: /wait-on-docker-image
 
   test-setting-default-false-to-true:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - run: |
         echo "Pre-step"
@@ -39,7 +39,7 @@ jobs:
 
   test-setting-default-true-to-false:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - run: |
         echo "Pre-step"
@@ -52,7 +52,7 @@ jobs:
 
   test-basic:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: mithro/actions-includes/tests/includes/actions/basic@main
       with:
@@ -60,7 +60,7 @@ jobs:
 
   test-recursive-remote-with-local:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: mithro/actions-includes/tests/includes/actions/recursive/local@main
       with:
@@ -76,7 +76,7 @@ jobs:
 
   test-recursive-remote-with-remote:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: mithro/actions-includes/tests/includes/actions/recursive/remote@main
       with:
@@ -92,25 +92,25 @@ jobs:
 
   test-other-location:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: mithro/actions-includes/include@other
 
   test-includes-script:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: mithro/actions-includes/tests/includes/actions/script@main
 
   test-recursive-remote-other:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: mithro/actions-includes/tests/includes/actions/recursive/remote-other@main
 
   test-include-some1:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: mithro/actions-includes/tests/includes/actions/sometimes@main
       with:
@@ -118,7 +118,7 @@ jobs:
 
   test-include-some2:
     needs: docker-image-build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: mithro/actions-includes/tests/includes/actions/sometimes@main
       with:

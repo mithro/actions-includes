@@ -20,7 +20,7 @@ on:
 
 jobs:
   docker-image-build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - includes: /wait-on-docker-image
 
@@ -30,7 +30,7 @@ jobs:
       matrix:
         use-first: [true, false]
         use-last: [true, false]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
     - includes: ./tests/includes/actions/basic
