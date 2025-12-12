@@ -26,6 +26,10 @@ jobs:
     name: Push Docker image to GitHub Packages
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      packages: write
+
     # Run a local registry
     services:
       registry:
@@ -51,8 +55,6 @@ jobs:
     - name: Push To
       id: push_to
       shell: python
-      env:
-        HAS_GHA_CR_TOKEN: ${{ secrets.GHA_CR_TOKEN != '' }}
       run: |
         import os
 
@@ -63,22 +65,25 @@ jobs:
 
         gh_repo = g('GITHUB_REPOSITORY')
         gh_event = g('GITHUB_EVENT_NAME')
-        has_cr_token = g('HAS_GHA_CR_TOKEN')
 
         i = []
 
         print("Adding local service.")
         i.append("localhost:5000/"+gh_repo)
 
-        if gh_event == 'push' and has_cr_token == 'true':
+        # Use GITHUB_TOKEN for authentication (always available)
+        if gh_event == 'push':
             print("Adding GitHub Container Repository (ghcr.io)")
             i.append("ghcr.io/{}/image".format(gh_repo))
         else:
-            print("Skipping GitHub Container Repository (ghcr.io)")
+            print("Skipping GitHub Container Repository (ghcr.io) for non-push events")
 
         l = ",".join(i)
         print("Final locations:", repr(l))
-        print("::set-output name=images::{}".format(l))
+
+        # Use environment file instead of deprecated set-output
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+            f.write("images={}\n".format(l))
 
     - name: Docker meta
       id: docker_meta
@@ -97,11 +102,11 @@ jobs:
 
     - name: Login to GHCR
       if: ${{ contains(steps.push_to.outputs.images, 'ghcr.io') }}
-      uses: docker/login-action@v1
+      uses: docker/login-action@v3
       with:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GHA_CR_TOKEN }}
         registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
 #    - name: Login to local registry
 #      uses: docker/login-action@v1
